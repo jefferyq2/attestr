@@ -10,6 +10,8 @@ require (
 	github.com/theupdateframework/go-tuf/v2 v2.0.0-20240402164131-b2e024ad4752
 )
 
+replace github.com/theupdateframework/go-tuf/v2 => github.com/mrjoelkamp/go-tuf/v2 v2.0.1 // for https://github.com/theupdateframework/go-tuf/pull/632
+
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
