@@ -11,3 +11,8 @@ func HexHashBytes(input []byte) string {
 	hashSum := s256.Sum(nil)
 	return hex.EncodeToString(hashSum)
 }
+
+func S256(data []byte) []byte {
+	h := sha256.Sum256(data)
+	return h[:]
+}
