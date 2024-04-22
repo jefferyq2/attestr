@@ -22,7 +22,7 @@ type Layers struct {
 }
 
 func TestGetTufTargetsMirror(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
@@ -56,7 +56,7 @@ func TestGetTufTargetsMirror(t *testing.T) {
 }
 
 func TestTargetDelegationMetadata(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
@@ -69,7 +69,7 @@ func TestTargetDelegationMetadata(t *testing.T) {
 }
 
 func TestGetDelegatedTargetMirrors(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")

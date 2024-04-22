@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/attest/internal/embed"
-	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/internal/util"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -49,8 +48,8 @@ func TestRegistryFetcher(t *testing.T) {
 	targetsRepo := regAddr.Host + "/tuf-targets"
 	targetFile := "test.txt"
 	delegatedRole := "test-role"
-	dir := test.CreateTempDir(t, "", "tuf_temp")
-	delegatedDir := test.CreateTempDir(t, dir, delegatedRole)
+	dir := CreateTempDir(t, "", "tuf_temp")
+	delegatedDir := CreateTempDir(t, dir, delegatedRole)
 	delegatedTargetFile := fmt.Sprintf("%s/%s", delegatedRole, targetFile)
 
 	cfg, err := config.New(metadataRepo, embed.DevRoot)

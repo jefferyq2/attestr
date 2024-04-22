@@ -16,7 +16,7 @@ import (
 )
 
 func TestGetTufMetadataMirror(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
@@ -34,7 +34,7 @@ func TestGetTufMetadataMirror(t *testing.T) {
 }
 
 func TestGetMetadataManifest(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
@@ -74,7 +74,7 @@ func TestGetMetadataManifest(t *testing.T) {
 }
 
 func TestGetDelegatedMetadataMirrors(t *testing.T) {
-	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "internal", "test", "testdata", "test-repo"))))
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo"))))
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
