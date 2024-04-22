@@ -4,24 +4,40 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/docker/attest/internal/embed"
-	"github.com/docker/attest/internal/test"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	HttpTufTestDataPath = filepath.Join("..", "..", "internal", "test", "testdata", "test-repo")
-	OciTufTestDataPath  = filepath.Join("..", "..", "internal", "test", "testdata", "test-repo-oci")
+	HttpTufTestDataPath = filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo")
+	OciTufTestDataPath  = filepath.Join("..", "..", "test", "testdata", "tuf", "test-repo-oci")
 )
+
+func CreateTempDir(t *testing.T, dir, pattern string) string {
+	// Create a temporary directory for output oci layout
+	tempDir, err := os.MkdirTemp(dir, pattern)
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+
+	// Register a cleanup function to delete the temp directory when the test exits
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("Failed to remove temp directory: %v", err)
+		}
+	})
+	return tempDir
+}
 
 // NewTufClient creates a new TUF client
 func TestRootInit(t *testing.T) {
-	tufPath := test.CreateTempDir(t, "", "tuf_temp")
+	tufPath := CreateTempDir(t, "", "tuf_temp")
 
-	// Start a test HTTP server to serve data from ./testdata/test-repo/ paths
+	// Start a test HTTP server to serve data from /test/testdata/tuf/test-repo/ paths
 	server := httptest.NewServer(http.FileServer(http.Dir(HttpTufTestDataPath)))
 	defer server.Close()
 
