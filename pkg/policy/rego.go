@@ -206,18 +206,13 @@ func verifyIntotoEnvelope(rCtx rego.BuiltinContext, envTerm, keysTerm *ast.Term)
 	return ast.NewTerm(value), nil
 }
 
-// copied from opa
 func loadYAML(path string, bs []byte) (interface{}, error) {
+	var x interface{}
 	bs, err := yaml.YAMLToJSON(bs)
 	if err != nil {
 		return nil, fmt.Errorf("%v: error converting YAML to JSON: %v", path, err)
 	}
-	return loadJSON(path, bs)
-}
-
-func loadJSON(path string, bs []byte) (interface{}, error) {
-	var x interface{}
-	err := opa.UnmarshalJSON(bs, &x)
+	err = opa.UnmarshalJSON(bs, &x)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
