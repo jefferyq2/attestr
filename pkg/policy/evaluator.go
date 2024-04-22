@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/attest/internal/oci"
+	"github.com/docker/attest/pkg/oci"
 )
 
 type policyEvaluatorCtxKeyType struct{}

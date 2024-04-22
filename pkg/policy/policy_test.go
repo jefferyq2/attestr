@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/attest/internal/oci"
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/docker/attest/pkg/tuf"
 	"github.com/stretchr/testify/assert"

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/attest/internal/oci"
 	"github.com/docker/attest/internal/util"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/tuf"
 
 	goyaml "gopkg.in/yaml.v3"
