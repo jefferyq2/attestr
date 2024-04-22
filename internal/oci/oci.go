@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
 	att "github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/types"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -71,11 +72,11 @@ func attestationManifestFromOCILayout(path string, platformStr string) (*Attesta
 		}
 	}
 	for _, mf := range mfs2.Manifests {
-		if mf.Annotations[DockerReferenceType] != AttestationManifestType {
+		if mf.Annotations[types.DockerReferenceType] != types.AttestationManifestType {
 			continue
 		}
 
-		if mf.Annotations[DockerReferenceDigest] != imageDigest {
+		if mf.Annotations[types.DockerReferenceDigest] != imageDigest {
 			continue
 		}
 
