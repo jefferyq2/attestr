@@ -38,3 +38,18 @@ func VerifyAttestations(ctx context.Context, resolver oci.AttestationResolver, f
 
 	return nil
 }
+
+func Verify(ctx context.Context, opts *policy.PolicyOptions, resolver oci.AttestationResolver) (policyFound bool, err error) {
+	policyFiles, err := policy.ResolvePolicy(ctx, resolver, opts)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve policy: %w", err)
+	}
+
+	// no policy for image -> success
+	if policyFiles == nil {
+		return false, nil
+	}
+
+	// policy found -> verify
+	return true, VerifyAttestations(ctx, resolver, policyFiles)
+}
