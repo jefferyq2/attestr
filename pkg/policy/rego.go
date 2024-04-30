@@ -23,6 +23,7 @@ import (
 
 type regoEvaluator struct {
 	debug bool
+	query string
 }
 
 func NewRegoEvaluator(debug bool) PolicyEvaluator {
