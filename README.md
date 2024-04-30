@@ -1,12 +1,72 @@
 # attest
-Library to create, verify, and evaluate policy for attestations on container images
+library to create, verify, and evaluate policy for attestations on container images
 
 # usage
 ## signing attestations
+1. generate an image with intoto Statements (optional)
+   ```sh
+   docker buildx build <PATH TO DOCKERFILE> --sbom true --provenance true --output type=oci,tar=false,name=<REPO>:<TAG>,dest=<OUTPUT DIR>
+   ```
 
+1. confgiure a `dsse.SignerVerifier`
+   ```go
+   var signer dsse.SignerVerifier 
+   signer, err = signerverifier.GetAWSSigner(cmd.Context(), aws_arn, aws_region)
+   ```
+
+1. configure signing options
+   ```go
+   opts := &attest.SigningOptions{
+		Replace: true, // replace unsigned intoto statements with signed intoto attestations, otherwise leave in place
+        }
+   ```
+   * add [Verification Summary Attestation (VSA)](https://slsa.dev/spec/v1.0/verification_summary) for all intoto attestations (optional)
+        ```go
+        opts.VSAOptions = &attestation.VSAOptions{
+			BuildLevel: "SLSA_BUILD_LEVEL_" + slsaBuildLevel,
+			PolicyURI:  slsaPolicyUri,
+			VerifierID: slsaVerifierId,
+            }
+        ```
+1. load attestations 
+   * oci registry
+        ```go
+        ref := "docker/attest:latest"
+        att, err := oci.AttestationIndexFromRemote(ref)
+        ```
+   * local filepath
+        ```go
+        path := "/test-image"
+        att, err := oci.AttestationIndexFromPath(path)
+        ```
+
+1. sign attestations
+    ```go
+    signedImageIndex, err := attest.SignIndexAttestations(ctx, att, signer, opts)
+    ```
+    `attest.SignedIndexAttestations()` iterates over all attestation manifests in the image index and signs all intoto statements (optionally generates a VSA), returning a mutated ImageIndex with all intoto statements signed as attestations.
+
+1. save output (optional)
+    * push to oci registry
+        ```go
+        err = mirror.PushToRegistry(signedImageIndex, ref)
+        ```
+    * save to local filesystem
+        ```go
+        idx := v1.ImageIndex(empty.Index)
+		idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
+			Add: signedImageIndex,
+			Descriptor: v1.Descriptor{
+				Annotations: map[string]string{
+					oci.OciReferenceTarget: att.Name,
+				},
+			},
+		})
+		err = mirror.SaveAsOCILayout(idx, path)
+        ```
 
 ## verifying attestations
-1. Create a TUF client
+1. create a TUF client
     * using OCI registry for TUF
         ```go
         tufClient, err := tuf.NewTufClient(embed.DefaultRoot, "/.docker/tuf", "docker/tuf-metadata:latest", "docker/tuf-targets")
@@ -16,7 +76,7 @@ Library to create, verify, and evaluate policy for attestations on container ima
         tufClient, err := tuf.NewTufClient(embed.DefaultRoot, "/.docker/tuf", "https://docker.github.io/tuf/metadata", "https://docker.github.io/tuf/targets")
         ```
 
-1. Configure an attestation resolver
+1. configure an attestation resolver
     * using OCI registry
         ```go
         var resolver oci.AttestationResolver
@@ -34,7 +94,7 @@ Library to create, verify, and evaluate policy for attestations on container ima
 		}
         ```
 
-2. Configure policy options
+1. configure policy options
     ```go
     opts := &policy.PolicyOptions{
 		TufClient:       tufClient,
@@ -43,7 +103,7 @@ Library to create, verify, and evaluate policy for attestations on container ima
 	}
     ```
 
-3. Verify attestations
+1. verify attestations
     ```go
     policy, err := attest.Verify(ctx, opts, resolver)
     if err != nil {
