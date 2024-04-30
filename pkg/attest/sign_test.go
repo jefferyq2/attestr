@@ -61,7 +61,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			}
 			attIdx, err := oci.AttestationIndexFromPath(tc.TestImage)
 			assert.NoError(t, err)
-			signedIndex, err := SignIndexAttestations(ctx, attIdx.Index, signer, opts)
+			signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
 			assert.NoError(t, err)
 
 			// output signed attestations

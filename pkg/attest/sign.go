@@ -17,7 +17,7 @@ import (
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
-func SignIndexAttestations(ctx context.Context, idx v1.ImageIndex, signer dsse.SignerVerifier, opts *SigningOptions) (v1.ImageIndex, error) {
+func Sign(ctx context.Context, idx v1.ImageIndex, signer dsse.SignerVerifier, opts *SigningOptions) (v1.ImageIndex, error) {
 	// extract attestation manifests from index
 	attestationManifests, err := attestation.GetAttestationManifestsFromIndex(idx)
 	if err != nil {

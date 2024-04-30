@@ -42,9 +42,9 @@ library to create, verify, and evaluate policy for attestations on container ima
 
 1. sign attestations
     ```go
-    signedImageIndex, err := attest.SignIndexAttestations(ctx, att, signer, opts)
+    signedImageIndex, err := attest.Sign(ctx, att, signer, opts)
     ```
-    `attest.SignedIndexAttestations()` iterates over all attestation manifests in the image index and signs all intoto statements (optionally generates a VSA), returning a mutated ImageIndex with all intoto statements signed as attestations.
+    `attest.Sign()` iterates over attestation manifests in the image index and signs all intoto statements (optionally generates a VSA), returning a mutated ImageIndex with all intoto statements signed as attestations.
 
 1. save output (optional)
     * push to oci registry
