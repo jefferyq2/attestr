@@ -35,18 +35,14 @@ func TestSignVerifyOCILayout(t *testing.T) {
 		TestImage            string
 		expectedStatements   int
 		expectedAttestations int
-		envelopeStyle        envelopeStyle
 		replace              bool
 	}{
 
-		{"signed replaced (does nothing)", UnsignedTestImage, 4, 4, OCIContentDescriptor, true},
-		{"without replace", UnsignedTestImage, 4, 4, OCIContentDescriptor, false},
-		{"embedded", UnsignedTestImage, 0, 6, EmbeddedDSSE, true},
-		{"embedded", UnsignedTestImage, 4, 6, EmbeddedDSSE, false},
-
+		{"signed replaced (does nothing)", UnsignedTestImage, 0, 6, true},
+		{"without replace", UnsignedTestImage, 4, 6, false},
 		// image without provenance doesn't fail
-		{"no provenance (replace)", NoProvenanceImage, 0, 4, EmbeddedDSSE, true},
-		{"no provenance (no replace)", NoProvenanceImage, 2, 4, EmbeddedDSSE, false},
+		{"no provenance (replace)", NoProvenanceImage, 0, 4, true},
+		{"no provenance (no replace)", NoProvenanceImage, 2, 4, false},
 	}
 	policyResolver := &policy.PolicyOptions{
 		LocalPolicyDir: LocalPolicyDir,
@@ -56,8 +52,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			tempDir := test.CreateTempDir(t, "", TestTempDir)
 			outputLayout := tempDir
 			opts := &SigningOptions{
-				Replace:       tc.replace,
-				EnvelopeStyle: tc.envelopeStyle,
+				Replace: tc.replace,
 				VSAOptions: &attestation.VSAOptions{
 					BuildLevel: "SLSA_BUILD_LEVEL_3",
 					PolicyURI:  "https://docker.com/attest/policy",
@@ -94,39 +89,22 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			vsas, err := test.ExtractAnnotatedStatements(tempDir, mt)
 			assert.NoError(t, err)
 			assert.Equalf(t, len(vsas), 2, "expected %d vsa statement, got %d", 2, len(vsas))
+			var allEnvelopes []*test.AnnotatedStatement
+			for _, predicate := range []string{intoto.PredicateSPDX, v02.PredicateSLSAProvenance, attestation.VSAPredicateType} {
+				mt, _ := attestation.DSSEMediaType(predicate)
+				statements, err := test.ExtractAnnotatedStatements(tempDir, mt)
+				assert.NoError(t, err)
+				allEnvelopes = append(allEnvelopes, statements...)
 
-			switch tc.envelopeStyle {
-			case OCIContentDescriptor:
-				{
-					statements, err := test.ExtractAnnotatedStatements(tempDir, intoto.PayloadType)
-					assert.NoError(t, err)
-					assert.Equalf(t, tc.expectedStatements, len(statements), "expected %d statement, got %d", tc.expectedStatements, len(statements))
-
-					statements, err = test.ExtractAnnotatedStatements(tempDir, attestation.OCIDescriptorDSSEMediaType)
-					assert.NoError(t, err)
-
-					assert.Equalf(t, tc.expectedAttestations, len(statements), "expected %d attestations, got %d", tc.expectedAttestations, len(statements))
-				}
-			case EmbeddedDSSE:
-				{
-					var allEnvelopes []*test.AnnotatedStatement
-					for _, predicate := range []string{intoto.PredicateSPDX, v02.PredicateSLSAProvenance, attestation.VSAPredicateType} {
-						mt, _ := attestation.DSSEMediaType(predicate)
-						statements, err := test.ExtractAnnotatedStatements(tempDir, mt)
-						assert.NoError(t, err)
-						allEnvelopes = append(allEnvelopes, statements...)
-
-						for _, stmt := range statements {
-							assert.Equalf(t, predicate, stmt.Annotations[oci.InTotoPredicateType], "expected predicate-type annotation to be set to %s, got %s", predicate, stmt.Annotations[oci.InTotoPredicateType])
-							assert.Equalf(t, LifecycleStageExperimental, stmt.Annotations[InTotoReferenceLifecycleStage], "expected reference lifecycle stage annotation to be set to %s, got %s", LifecycleStageExperimental, stmt.Annotations[InTotoReferenceLifecycleStage])
-						}
-					}
-					assert.Equalf(t, tc.expectedAttestations, len(allEnvelopes), "expected %d attestations, got %d", tc.expectedAttestations, len(allEnvelopes))
-					statements, err := test.ExtractAnnotatedStatements(tempDir, intoto.PayloadType)
-					assert.NoError(t, err)
-					assert.Equalf(t, tc.expectedStatements, len(statements), "expected %d statement, got %d", tc.expectedStatements, len(statements))
+				for _, stmt := range statements {
+					assert.Equalf(t, predicate, stmt.Annotations[oci.InTotoPredicateType], "expected predicate-type annotation to be set to %s, got %s", predicate, stmt.Annotations[oci.InTotoPredicateType])
+					assert.Equalf(t, LifecycleStageExperimental, stmt.Annotations[InTotoReferenceLifecycleStage], "expected reference lifecycle stage annotation to be set to %s, got %s", LifecycleStageExperimental, stmt.Annotations[InTotoReferenceLifecycleStage])
 				}
 			}
+			assert.Equalf(t, tc.expectedAttestations, len(allEnvelopes), "expected %d attestations, got %d", tc.expectedAttestations, len(allEnvelopes))
+			statements, err := test.ExtractAnnotatedStatements(tempDir, intoto.PayloadType)
+			assert.NoError(t, err)
+			assert.Equalf(t, tc.expectedStatements, len(statements), "expected %d statement, got %d", tc.expectedStatements, len(statements))
 		})
 	}
 }

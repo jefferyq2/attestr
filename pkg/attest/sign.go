@@ -15,7 +15,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
-	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
@@ -81,44 +80,17 @@ func SignIndexAttestations(ctx context.Context, idx v1.ImageIndex, signer dsse.S
 			}
 			ann[InTotoReferenceLifecycleStage] = LifecycleStageExperimental
 
-			var env *attestation.Envelope
-			var mediaType string
-			switch opts.EnvelopeStyle {
-			case OCIContentDescriptor:
-				// Ensure we sign just the digest, size, and media type
-				payloadDesc := v1.Descriptor{
-					Digest:    layerDesc.Digest,
-					Size:      layerDesc.Size,
-					MediaType: layerDesc.MediaType,
-				}
-				payload, err := json.Marshal(payloadDesc)
-				if err != nil {
-					return nil, fmt.Errorf("failed to marshal descriptor: %w", err)
-				}
-				env, err = attestation.SignDSSE(ctx, payload, ociv1.MediaTypeDescriptor, signer)
-				if err != nil {
-					return nil, fmt.Errorf("failed to sign statement: %w", err)
-				}
-				ann[oci.DockerReferenceDigest] = layerDesc.Digest.String()
-				// this is a reference type
-				opts.Replace = false
-				mediaType = attestation.OCIDescriptorDSSEMediaType
-			case EmbeddedDSSE:
-				payload, err := json.Marshal(stmt)
-				if err != nil {
-					return nil, fmt.Errorf("failed to marshal statement: %w", err)
-				}
-				env, err = attestation.SignDSSE(ctx, payload, intoto.PayloadType, signer)
-				if err != nil {
-					return nil, fmt.Errorf("failed to sign statement: %w", err)
-				}
-				mediaType, err = attestation.DSSEMediaType(stmt.PredicateType)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get DSSE media type: %w", err)
-				}
-
-			default:
-				return nil, fmt.Errorf("unknown envelope style %q", opts.EnvelopeStyle)
+			payload, err := json.Marshal(stmt)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal statement: %w", err)
+			}
+			env, err := attestation.SignDSSE(ctx, payload, intoto.PayloadType, signer)
+			if err != nil {
+				return nil, fmt.Errorf("failed to sign statement: %w", err)
+			}
+			mediaType, err := attestation.DSSEMediaType(stmt.PredicateType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get DSSE media type: %w", err)
 			}
 
 			data, err := json.Marshal(env)
