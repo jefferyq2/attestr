@@ -2,6 +2,62 @@
 library to create, verify, and evaluate policy for attestations on container images
 
 # usage
+## verifying attestations
+1. create a TUF client
+    * using OCI registry for TUF
+        ```go
+        tufOutputPath = "/.docker/tuf"
+        metadataURI = "docker/tuf-metadata:latest"
+        targetsURI = "docker/tuf-targets"
+        tufClient, err := tuf.NewTufClient(embed.DefaultRoot, tufOutputPath, metadataURI, targetsURI)
+        ```
+    * using HTTPS for TUF
+        ```go
+        tufOutputPath = "/.docker/tuf"
+        metadataURI = "https://docker.github.io/tuf/metadata"
+        targetsURI = "https://docker.github.io/tuf/targets"
+        tufClient, err := tuf.NewTufClient(embed.DefaultRoot, tufOutputPath, metadataURI, targetsURI)
+        ```
+
+1. configure an attestation resolver
+    * using OCI registry
+        ```go
+        var resolver oci.AttestationResolver
+        resolver = &oci.RegistryResolver{
+			Image:    image,    // path to image index in OCI registry containing image attestations (e.g. docker/nginx:latest)
+			Platform: platform, // platform of subject image (image that attestations are being verified against)
+		}
+        ```
+    * using local OCI layout
+        ```go
+        var resolver oci.AttestationResolver
+        resolver = &oci.OCILayoutResolver{
+			Path:     path,     // file path to OCI layout containing image attestations (e.g. /myimage)
+			Platform: platform, // platform of subject image (image that attestations are being verified against)
+		}
+        ```
+
+1. configure policy options
+    ```go
+    opts := &policy.PolicyOptions{
+		TufClient:       tufClient,
+		LocalTargetsDir: "/.docker/policy", // location to store policy files downloaded from TUF
+		LocalPolicyDir:  "", // overrides TUF policy for local policy files
+	}
+    ```
+
+1. verify attestations
+    ```go
+    policy, err := attest.Verify(ctx, opts, resolver)
+    if err != nil {
+        return false // failed policy or attestation signature verification
+    }
+    if policy {
+        return true // passed policy
+    }
+    return true // no policy for image
+    ```
+
 ## signing attestations
 1. generate an image with intoto Statements (optional)
    ```sh
@@ -64,56 +120,6 @@ library to create, verify, and evaluate policy for attestations on container ima
 		})
 		err = mirror.SaveAsOCILayout(idx, path)
         ```
-
-## verifying attestations
-1. create a TUF client
-    * using OCI registry for TUF
-        ```go
-        tufClient, err := tuf.NewTufClient(embed.DefaultRoot, "/.docker/tuf", "docker/tuf-metadata:latest", "docker/tuf-targets")
-        ```
-    * using HTTPS for TUF
-        ```go
-        tufClient, err := tuf.NewTufClient(embed.DefaultRoot, "/.docker/tuf", "https://docker.github.io/tuf/metadata", "https://docker.github.io/tuf/targets")
-        ```
-
-1. configure an attestation resolver
-    * using OCI registry
-        ```go
-        var resolver oci.AttestationResolver
-        resolver = &oci.RegistryResolver{
-			Image:    image,    // path to image index in OCI registry containing image attestations (e.g. docker/nginx:latest)
-			Platform: platform, // platform of subject image (image that attestations are being verified against)
-		}
-        ```
-    * using local OCI layout
-        ```go
-        var resolver oci.AttestationResolver
-        resolver = &oci.OCILayoutResolver{
-			Path:     path,     // file path to OCI layout containing image attestations (e.g. /myimage)
-			Platform: platform, // platform of subject image (image that attestations are being verified against)
-		}
-        ```
-
-1. configure policy options
-    ```go
-    opts := &policy.PolicyOptions{
-		TufClient:       tufClient,
-		LocalTargetsDir: "/.docker/policy", // location to store policy files downloaded from TUF
-		LocalPolicyDir:  "", // overrides TUF policy for local policy files
-	}
-    ```
-
-1. verify attestations
-    ```go
-    policy, err := attest.Verify(ctx, opts, resolver)
-    if err != nil {
-        return false // failed policy or attestation signature verification
-    }
-    if policy {
-        return true // passed policy
-    }
-    return true // no policy for image
-    ```
 
 ## mirroring TUF repositories
 TODO: write content for this outline
