@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -19,159 +18,122 @@ import (
 )
 
 func SignIndexAttestations(ctx context.Context, idx v1.ImageIndex, signer dsse.SignerVerifier, opts *SigningOptions) (v1.ImageIndex, error) {
-	indexManifest, err := idx.IndexManifest()
+	// extract attestation manifests from index
+	attestationManifests, err := attestation.GetAttestationManifestsFromIndex(idx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract IndexManifest from ImageIndex: %w", err)
+		return nil, fmt.Errorf("failed to get attestation manifests: %w", err)
 	}
 
-	var originalManifestDigests []v1.Hash
-	var muts []mutate.IndexAddendum
-	for _, manifest := range indexManifest.Manifests {
-		if manifest.Annotations[oci.DockerReferenceType] != oci.AttestationManifestType {
-			continue
-		}
-
-		originalManifestDigests = append(originalManifestDigests, manifest.Digest)
-
-		attestationImage, err := idx.Image(manifest.Digest)
+	// sign every attestation layer in each manifest
+	for _, manifest := range attestationManifests {
+		attestationLayers, err := attestation.GetAttestationsFromImage(manifest.Attestation.Image)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract attestation image with digest %s: %w", manifest.Digest.String(), err)
+			return nil, fmt.Errorf("failed to get attestations from image: %w", err)
 		}
-		layers, err := attestationImage.Layers()
+		signedLayers, err := signLayers(ctx, attestationLayers, signer)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract layers from attestation image: %w", err)
+			return nil, fmt.Errorf("failed to sign attestations: %w", err)
 		}
-
-		var signedLayers []mutate.Addendum
-		var originalLayers []v1.Layer
-		var statements []*intoto.Statement
-
-		for _, layer := range layers {
-			// parse layer blob as json
-			r, err := layer.Uncompressed()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get layer contents: %w", err)
-			}
-			defer r.Close()
-			mt, err := layer.MediaType()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get layer media type: %w", err)
-			}
-
-			if mt != types.MediaType(intoto.PayloadType) {
-				originalLayers = append(originalLayers, layer)
-				continue
-			}
-			var stmt = new(intoto.Statement)
-			err = json.NewDecoder(r).Decode(&stmt)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode statement layer contents: %w", err)
-			}
-
-			statements = append(statements, stmt)
-			layerDesc, err := partial.Descriptor(layer)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get descriptor for layer: %w", err)
-			}
-			// copy original annotations and add new ones
-			ann := make(map[string]string)
-			for k, v := range layerDesc.Annotations {
-				ann[k] = v
-			}
-			ann[InTotoReferenceLifecycleStage] = LifecycleStageExperimental
-
-			payload, err := json.Marshal(stmt)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal statement: %w", err)
-			}
-			env, err := attestation.SignDSSE(ctx, payload, intoto.PayloadType, signer)
-			if err != nil {
-				return nil, fmt.Errorf("failed to sign statement: %w", err)
-			}
-			mediaType, err := attestation.DSSEMediaType(stmt.PredicateType)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get DSSE media type: %w", err)
-			}
-
-			data, err := json.Marshal(env)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal envelope: %w", err)
-			}
-			newLayer := static.NewLayer(data, types.MediaType(mediaType))
-
-			withAnnotations := mutate.Addendum{
-				Layer:       newLayer,
-				Annotations: ann,
-			}
-			signedLayers = append(signedLayers, withAnnotations)
-		}
-
-		newImg, err := addSignedLayers(signedLayers, originalLayers, manifest.MediaType, attestationImage, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to add signed layers: %w", err)
-		}
-
 		if opts.VSAOptions != nil {
-			newLayer, err := generateVSA(ctx, newImg, statements, signer, opts)
+			newLayer, err := generateVSA(ctx, manifest, signer, opts)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate VSA: %w", err)
 			}
-			vsaReplace := &SigningOptions{
-				Replace: false,
-			}
-			newImg, err = addSignedLayers([]mutate.Addendum{*newLayer}, layers, manifest.MediaType, newImg, vsaReplace)
-			if err != nil {
-				return nil, fmt.Errorf("failed to add VSA layer: %w", err)
-			}
+			signedLayers = append(signedLayers, *newLayer)
+		}
+		newImg, err := addSignedLayers(signedLayers, manifest, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add signed layers: %w", err)
 		}
 		newDesc, err := partial.Descriptor(newImg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get descriptor: %w", err)
 		}
-		cf, err := attestationImage.ConfigFile()
+		cf, err := manifest.Attestation.Image.ConfigFile()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get config file: %w", err)
 		}
 		newDesc.Platform = cf.Platform()
 		newDesc.MediaType = manifest.MediaType
 		newDesc.Annotations = manifest.Annotations
-
-		muts = append(muts, mutate.IndexAddendum{
+		idx = mutate.RemoveManifests(idx, match.Digests(manifest.Digest))
+		idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
 			Add:        newImg,
 			Descriptor: *newDesc,
 		})
 	}
-	// create new index with signed images
-	newIndex := mutate.RemoveManifests(idx, match.Digests(originalManifestDigests...))
-	newIndex = mutate.AppendManifests(newIndex, muts...)
-
-	return newIndex, nil
+	return idx, nil
 }
 
-func addSignedLayers(signedLayers []mutate.Addendum, originalLayers []v1.Layer, mediaType types.MediaType, attestationImage v1.Image, opts *SigningOptions) (v1.Image, error) {
+// signLayers signs each intoto attestation layer with the given signer
+func signLayers(ctx context.Context, layers []attestation.AttestationLayer, signer dsse.SignerVerifier) ([]mutate.Addendum, error) {
+	var signedLayers []mutate.Addendum
+	for _, layer := range layers {
+		// only sign intoto layers
+		if layer.MediaType != types.MediaType(intoto.PayloadType) {
+			continue
+		}
+		// mark attestation as experimental
+		layer.Annotations[InTotoReferenceLifecycleStage] = LifecycleStageExperimental
+
+		// sign the statement
+		payload, err := json.Marshal(layer.Statement)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal statement: %w", err)
+		}
+		env, err := attestation.SignDSSE(ctx, payload, intoto.PayloadType, signer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign statement: %w", err)
+		}
+		mediaType, err := attestation.DSSEMediaType(layer.Statement.PredicateType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DSSE media type: %w", err)
+		}
+		data, err := json.Marshal(env)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal envelope: %w", err)
+		}
+		newLayer := static.NewLayer(data, types.MediaType(mediaType))
+		withAnnotations := mutate.Addendum{
+			Layer:       newLayer,
+			Annotations: layer.Annotations,
+		}
+		signedLayers = append(signedLayers, withAnnotations)
+	}
+	return signedLayers, nil
+}
+
+// addSignedLayers adds signed layers to a new or existing attestation image
+func addSignedLayers(signedLayers []mutate.Addendum, manifest attestation.AttestationManifest, opts *SigningOptions) (v1.Image, error) {
 	var err error
 	if opts.Replace {
+		// create a new attestation image with only signed layers
 		newImg := empty.Image
-		newImg = mutate.MediaType(newImg, mediaType)
+		newImg = mutate.MediaType(newImg, manifest.MediaType)
 		newImg = mutate.ConfigMediaType(newImg, "application/vnd.oci.image.config.v1+json")
 		for _, layer := range signedLayers {
 			newImg, err = mutate.Append(newImg, layer)
 			if err != nil {
-				return nil, fmt.Errorf("failed to append layer: %w", err)
+				return nil, fmt.Errorf("failed to append signed layer: %w", err)
 			}
 		}
-		newImg, err = mutate.AppendLayers(newImg, originalLayers...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append original layers: %w", err)
+		// add any existing unsigned (non-intoto) layers to the new image
+		for _, layer := range manifest.Attestation.Layers {
+			if layer.MediaType != types.MediaType(intoto.PayloadType) {
+				newImg, err = mutate.AppendLayers(newImg, layer.Layer)
+				if err != nil {
+					return nil, fmt.Errorf("failed to append unsigned layer: %w", err)
+				}
+			}
 		}
 		return newImg, nil
-
 	}
+	// Add signed layers to the existing image
 	for _, layer := range signedLayers {
-		attestationImage, err = mutate.Append(attestationImage, layer)
+		manifest.Attestation.Image, err = mutate.Append(manifest.Attestation.Image, layer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append layer: %w", err)
 		}
 	}
-	return attestationImage, nil
+	return manifest.Attestation.Image, nil
 }

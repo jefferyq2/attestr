@@ -131,11 +131,22 @@ func TestAddSignedLayerAnnotations(t *testing.T) {
 			data = []byte("test")
 			testLayer := static.NewLayer(data, types.MediaType(intoto.PayloadType))
 			mediaType := types.OCIManifestSchema1
-			img := empty.Image
 			opts := &SigningOptions{
 				Replace: tc.replace,
 			}
-			newImg, err := addSignedLayers(signedLayers, []v1.Layer{testLayer}, mediaType, img, opts)
+			manifest := attestation.AttestationManifest{
+				MediaType: mediaType,
+				Attestation: attestation.AttestationImage{
+					Image: empty.Image,
+					Layers: []attestation.AttestationLayer{
+						{
+							Layer:     testLayer,
+							Statement: &intoto.Statement{},
+						},
+					},
+				},
+			}
+			newImg, err := addSignedLayers(signedLayers, manifest, opts)
 			assert.NoError(t, err)
 			mf, _ := newImg.RawManifest()
 			type Annotations struct {

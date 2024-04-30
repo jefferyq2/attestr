@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -17,35 +16,30 @@ import (
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
-func generateVSA(ctx context.Context, image v1.Image, stmt []*intoto.Statement, signer dsse.SignerVerifier, opts *SigningOptions) (*mutate.Addendum, error) {
-	if len(stmt) == 0 {
+// generateVSA generates a VSA from the attestation manifest
+// TODO: remove signing logic and move generateVSA to attestation/vsa.go
+func generateVSA(ctx context.Context, manifest attestation.AttestationManifest, signer dsse.SignerVerifier, opts *SigningOptions) (*mutate.Addendum, error) {
+	if len(manifest.Attestation.Layers) == 0 {
 		return nil, fmt.Errorf("no attestations found to generate VSA from")
 	}
-	sub := stmt[0].Subject[0]
-	stype := stmt[0].Type
+	sub := manifest.Attestation.Layers[0].Statement.Subject[0]
+	stype := manifest.Attestation.Layers[0].Statement.Type
 
 	uri, err := attestation.ToVSAResourceURI(sub)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate VSA resource URI: %w", err)
 	}
 
-	inputs := make([]attestation.VSAInputAttestation, 0, len(stmt))
-	layers, err := image.Layers()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get layers: %w", err)
-	}
-	for _, layer := range layers {
-		mt, err := layer.MediaType()
+	inputs := make([]attestation.VSAInputAttestation, 0, len(manifest.Attestation.Layers))
+	for _, att := range manifest.Attestation.Layers {
+		mt, err := att.Layer.MediaType()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get layer media type: %w", err)
 		}
-		mediaType := string(mt)
-		if !strings.HasPrefix(mediaType, "application/vnd.in-toto.") ||
-			!strings.HasSuffix(mediaType, "+dsse") {
+		if !strings.HasSuffix(string(mt), "+dsse") {
 			continue
 		}
-
-		dgst, err := layer.Digest()
+		dgst, err := att.Layer.Digest()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get layer digest: %w", err)
 		}
@@ -58,7 +52,7 @@ func generateVSA(ctx context.Context, image v1.Image, stmt []*intoto.Statement, 
 		StatementHeader: intoto.StatementHeader{
 			PredicateType: attestation.VSAPredicateType,
 			Type:          stype,
-			Subject:       stmt[0].Subject,
+			Subject:       manifest.Attestation.Layers[0].Statement.Subject,
 		},
 		Predicate: attestation.VSAPredicate{
 			Verifier: attestation.VSAVerifier{
