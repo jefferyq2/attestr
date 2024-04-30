@@ -29,11 +29,10 @@ type regoEvaluator struct {
 func NewRegoEvaluator(debug bool) PolicyEvaluator {
 	return &regoEvaluator{
 		debug: debug,
-		query: "data.attestations.allow",
 	}
 }
 
-func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, files []*PolicyFile, input *PolicyInput) (*rego.ResultSet, error) {
+func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, files []*PolicyFile, input *PolicyInput) error {
 	var regoOpts []func(*rego.Rego)
 
 	// Create a new in-memory store
@@ -42,7 +41,7 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 	params.Write = true
 	txn, err := store.NewTransaction(ctx, params)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, target := range files {
@@ -50,11 +49,11 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 		if filepath.Ext(target.Path) == ".yaml" {
 			yamlData, err := loadYAML(target.Path, target.Content)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			err = store.Write(ctx, txn, storage.AddOp, storage.Path{}, yamlData)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		} else {
 			regoOpts = append(regoOpts, rego.Module(target.Path, string(target.Content)))
@@ -64,7 +63,7 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 	err = store.Commit(ctx, txn)
 	if err != nil {
 		store.Abort(ctx, txn)
-		return nil, err
+		return err
 	}
 
 	if re.debug {
@@ -76,7 +75,7 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 	}
 
 	regoOpts = append(regoOpts,
-		rego.Query(re.query),
+		rego.Query("data.docker.allow"),
 		rego.StrictBuiltinErrors(true),
 		rego.Input(input),
 		rego.Store(store),
@@ -87,7 +86,15 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 
 	r := rego.New(regoOpts...)
 	rs, err := r.Eval(ctx)
-	return &rs, err
+	if err != nil {
+		return fmt.Errorf("error from Eval: %w", err)
+	}
+
+	if !rs.Allowed() {
+		return fmt.Errorf("policy evaluation failed")
+	}
+
+	return nil
 }
 
 var dynamicObj = types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))

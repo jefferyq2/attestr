@@ -18,7 +18,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
@@ -88,33 +87,20 @@ func GetMockSigner(ctx context.Context) (dsse.SignerVerifier, error) {
 }
 
 type MockPolicyEvaluator struct {
-	EvaluateFunc func(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) (*rego.ResultSet, error)
+	EvaluateFunc func(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error
 }
 
-func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) (*rego.ResultSet, error) {
+func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error {
 	if pe.EvaluateFunc != nil {
 		return pe.EvaluateFunc(ctx, resolver, policy, input)
 	}
-	return AllowedResult(), nil
+	return nil
 }
 
 func GetMockPolicy() policy.PolicyEvaluator {
 	return &MockPolicyEvaluator{
-		EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, pfs []*policy.PolicyFile, input *policy.PolicyInput) (*rego.ResultSet, error) {
-			return AllowedResult(), nil
-		},
-	}
-}
-
-func AllowedResult() *rego.ResultSet {
-	return &rego.ResultSet{
-		{
-			Bindings: rego.Vars{},
-			Expressions: []*rego.ExpressionValue{
-				{
-					Value: true,
-				},
-			},
+		EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error {
+			return nil
 		},
 	}
 }
