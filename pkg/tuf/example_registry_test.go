@@ -18,8 +18,8 @@ func ExampleNewTufClient_registry() {
 	tufOutputPath := filepath.Join(home, ".docker", "tuf")
 
 	// using oci tuf metadata and targets
-	metadataURI := "regsitry-1.docker.io/docker/tuf-metadata:latest"
-	targetsURI := "regsitry-1.docker.io/docker/tuf-targets"
+	metadataURI := "registry-1.docker.io/docker/tuf-metadata:latest"
+	targetsURI := "registry-1.docker.io/docker/tuf-targets"
 	registryClient, err := tuf.NewTufClient(embed.StagingRoot, tufOutputPath, metadataURI, targetsURI)
 	if err != nil {
 		panic(err)
