@@ -3,13 +3,13 @@ library to create, verify, and evaluate policy for attestations on container ima
 
 # usage
 ## verifying attestations
-See example [example_verify.go](./pkg/attest/example_verify.go)
+See [example_verify_test.go](./pkg/attest/example_verify_test.go)
 
 ## signing attestations
-See example [example_sign.go](./pkg/attest/example_sign.go)
+See [example_sign_test.go](./pkg/attest/example_sign_test.go)
 
 ## mirroring TUF repositories to OCI
-See example [example_mirror.go](./pkg/mirror/example_mirror.go)
+See [example_mirror_test.go](./pkg/mirror/example_mirror_test.go)
 
 ### using `go-tuf` OCI registry client
-See example [example_registry](./pkg/tuf/example_registry.go)
+See [example_registry_test.go](./pkg/tuf/example_registry_test.go)

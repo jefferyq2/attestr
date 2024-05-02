@@ -1,4 +1,4 @@
-package attest
+package attest_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/attest/internal/embed"
+	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/docker/attest/pkg/tuf"
@@ -19,7 +20,7 @@ func createTufClient(outputPath string) (*tuf.TufClient, error) {
 	// metadataURI := "https://docker.github.io/tuf-staging/metadata"
 	// targetsURI := "https://docker.github.io/tuf-staging/targets"
 
-	return tuf.NewTufClient(embed.DefaultRoot, outputPath, metadataURI, targetsURI)
+	return tuf.NewTufClient(embed.StagingRoot, outputPath, metadataURI, targetsURI)
 }
 
 func ExampleVerify_remote() {
@@ -57,7 +58,7 @@ func ExampleVerify_remote() {
 	}
 
 	// verify attestations
-	policy, err := Verify(context.Background(), opts, resolver)
+	policy, err := attest.Verify(context.Background(), opts, resolver)
 	if err != nil {
 		panic(err) // failed policy or attestation signature verification
 	}

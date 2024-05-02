@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,9 +42,9 @@ func TestVerifyAttestations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			mockPE := test.MockPolicyEvaluator{
-				EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, pfs []*policy.PolicyFile, input *policy.PolicyInput) error {
-					return tc.policyEvaluationError
+			mockPE := policy.MockPolicyEvaluator{
+				EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, pfs []*policy.PolicyFile, input *policy.PolicyInput) (*rego.ResultSet, error) {
+					return policy.AllowedResult(), tc.policyEvaluationError
 				},
 			}
 

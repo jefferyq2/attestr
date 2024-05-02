@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/docker/attest/pkg/signerverifier"
 	"github.com/docker/attest/pkg/tlog"
@@ -58,7 +57,7 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 
 	var policyEvaluator policy.PolicyEvaluator
 	if USE_MOCK_POLICY {
-		policyEvaluator = GetMockPolicy()
+		policyEvaluator = policy.GetMockPolicy()
 	} else {
 		policyEvaluator = policy.NewRegoEvaluator(true)
 	}
@@ -84,25 +83,6 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 
 func GetMockSigner(ctx context.Context) (dsse.SignerVerifier, error) {
 	return signerverifier.GenKeyPair()
-}
-
-type MockPolicyEvaluator struct {
-	EvaluateFunc func(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error
-}
-
-func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error {
-	if pe.EvaluateFunc != nil {
-		return pe.EvaluateFunc(ctx, resolver, policy, input)
-	}
-	return nil
-}
-
-func GetMockPolicy() policy.PolicyEvaluator {
-	return &MockPolicyEvaluator{
-		EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, policy []*policy.PolicyFile, input *policy.PolicyInput) error {
-			return nil
-		},
-	}
 }
 
 type AnnotatedStatement struct {

@@ -1,14 +1,15 @@
-package tuf
+package tuf_test
 
 import (
 	"os"
 	"path/filepath"
 
 	"github.com/docker/attest/internal/embed"
+	"github.com/docker/attest/pkg/tuf"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
-func ExampleTufRegistryClient() {
+func ExampleNewTufClient_registry() {
 	// create a tuf client
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -19,7 +20,7 @@ func ExampleTufRegistryClient() {
 	// using oci tuf metadata and targets
 	metadataURI := "regsitry-1.docker.io/docker/tuf-metadata:latest"
 	targetsURI := "regsitry-1.docker.io/docker/tuf-targets"
-	registryClient, err := NewTufClient(embed.DefaultRoot, tufOutputPath, metadataURI, targetsURI)
+	registryClient, err := tuf.NewTufClient(embed.StagingRoot, tufOutputPath, metadataURI, targetsURI)
 	if err != nil {
 		panic(err)
 	}

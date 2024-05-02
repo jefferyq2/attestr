@@ -1,8 +1,9 @@
-package attest
+package attest_test
 
 import (
 	"context"
 
+	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
@@ -25,7 +26,7 @@ func ExampleSign_remote() {
 	// signer, err := signerverifier.GetAWSSigner(cmd.Context(), aws_arn, aws_region)
 
 	// configure signing options
-	opts := &SigningOptions{
+	opts := &attest.SigningOptions{
 		Replace: true, // replace unsigned intoto statements with signed intoto attestations, otherwise leave in place
 	}
 
@@ -50,7 +51,7 @@ func ExampleSign_remote() {
 	// att, err := oci.AttestationIndexFromLocal(path)
 
 	// sign attestations
-	signedImageIndex, err := Sign(context.Background(), att.Index, signer, opts)
+	signedImageIndex, err := attest.Sign(context.Background(), att.Index, signer, opts)
 	if err != nil {
 		panic(err)
 	}
