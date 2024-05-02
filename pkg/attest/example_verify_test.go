@@ -14,8 +14,8 @@ import (
 
 func createTufClient(outputPath string) (*tuf.TufClient, error) {
 	// using oci tuf metadata and targets
-	metadataURI := "regsitry-1.docker.io/docker/tuf-metadata:latest"
-	targetsURI := "regsitry-1.docker.io/docker/tuf-targets"
+	metadataURI := "registry-1.docker.io/docker/tuf-metadata:latest"
+	targetsURI := "registry-1.docker.io/docker/tuf-targets"
 	// example using http tuf metadata and targets
 	// metadataURI := "https://docker.github.io/tuf-staging/metadata"
 	// targetsURI := "https://docker.github.io/tuf-staging/targets"
