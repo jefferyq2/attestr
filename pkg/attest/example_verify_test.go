@@ -66,5 +66,6 @@ func ExampleVerify_remote() {
 		print("policy passed: %v\n", policy)
 		return // passed policy
 	}
-	// no policy for image
+	// no policy found for image
+	print("no policy for image")
 }

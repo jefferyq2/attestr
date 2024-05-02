@@ -2,11 +2,10 @@
 library to create, verify, and evaluate policy for attestations on container images
 
 # usage
-## verifying attestations
-See [example_verify_test.go](./pkg/attest/example_verify_test.go)
-
-## signing attestations
+## signing and verifying attestations
 See [example_sign_test.go](./pkg/attest/example_sign_test.go)
+
+See [example_verify_test.go](./pkg/attest/example_verify_test.go)
 
 ## mirroring TUF repositories to OCI
 See [example_mirror_test.go](./pkg/mirror/example_mirror_test.go)
