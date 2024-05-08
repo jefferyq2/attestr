@@ -2,6 +2,7 @@ package attest_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -63,9 +64,9 @@ func ExampleVerify_remote() {
 		panic(err) // failed policy or attestation signature verification
 	}
 	if policy {
-		print("policy passed: %v\n", policy)
+		fmt.Printf("policy passed: %v\n", policy)
 		return // passed policy
 	}
 	// no policy found for image
-	print("no policy for image")
+	fmt.Printf("no policy for image")
 }

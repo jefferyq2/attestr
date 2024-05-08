@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -214,7 +213,7 @@ func (tl *RekorTL) VerifyEntryPayload(entryBytes, payload, publicKey []byte) err
 	}
 
 	// compare payload hashes
-	payloadHash := hex.EncodeToString(util.S256(payload))
+	payloadHash := util.SHA256Hex(payload)
 	if rekord.Hash != payloadHash {
 		return fmt.Errorf("error payload and tl entry hash mismatch")
 	}

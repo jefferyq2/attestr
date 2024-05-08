@@ -13,5 +13,5 @@ func KeyID(pubKey crypto.PublicKey) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error marshalling public key: %w", err)
 	}
-	return util.HexHashBytes(pub), nil
+	return util.SHA256Hex(pub), nil
 }

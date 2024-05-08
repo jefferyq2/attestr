@@ -121,7 +121,7 @@ func TestFindFileInManifest(t *testing.T) {
 	// make test image manifest
 	file := "test.json"
 	data := []byte("test")
-	hash := v1.Hash{Algorithm: "sha256", Hex: util.HexHashBytes(data)}
+	hash := v1.Hash{Algorithm: "sha256", Hex: util.SHA256Hex(data)}
 	img := empty.Image
 	img = mutate.MediaType(img, types.OCIManifestSchema1)
 	img = mutate.ConfigMediaType(img, types.OCIConfigJSON)

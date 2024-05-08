@@ -35,7 +35,7 @@ func (m *TufMirror) GetTufTargetMirrors() ([]*MirrorImage, error) {
 		if !ok {
 			return nil, fmt.Errorf("missing sha256 hash for target %s", t.Path)
 		}
-		name := strings.Join([]string{hash.String(), t.Path}, ".")
+		name := hash.String() + "." + t.Path
 		ann := map[string]string{tufFileAnnotation: name}
 		layer := mutate.Addendum{Layer: static.NewLayer(data, tufTargetMediaType), Annotations: ann}
 		img, err = mutate.Append(img, layer)
@@ -86,7 +86,7 @@ func (m *TufMirror) GetDelegatedTargetMirrors() ([]*MirrorIndex, error) {
 			if !ok {
 				return nil, fmt.Errorf("failed to find target subdirectory [%s] in path: %s", subdir, target.Path)
 			}
-			name := strings.Join([]string{hash.String(), filename}, ".")
+			name := hash.String() + "." + filename
 			ann := map[string]string{tufFileAnnotation: name}
 			layer := mutate.Addendum{Layer: static.NewLayer(data, tufTargetMediaType), Annotations: ann}
 			img, err = mutate.Append(img, layer)

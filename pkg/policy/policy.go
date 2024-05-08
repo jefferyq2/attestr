@@ -6,10 +6,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/distribution/reference"
-	"github.com/docker/attest/internal/util"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/tuf"
 
@@ -148,7 +148,7 @@ func findPolicyMatch(named reference.Named, mappings *PolicyMappings) (*PolicyMa
 		}
 		// now search mirrors
 		for _, mirror := range mappings.Mirrors {
-			if util.StringInSlice(reference.Domain(named), mirror.Mirror.Domains) &&
+			if slices.Contains(mirror.Mirror.Domains, reference.Domain(named)) &&
 				strings.HasPrefix(reference.Path(named), mirror.Mirror.Prefix) {
 				for _, mapping := range mappings.Policies {
 					if mapping.Name == mirror.Name {

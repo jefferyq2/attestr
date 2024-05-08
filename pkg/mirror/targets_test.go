@@ -27,22 +27,22 @@ func TestGetTufTargetsMirror(t *testing.T) {
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
 	m, err := NewTufMirror(embed.DevRoot, path, server.URL+"/metadata", server.URL+"/targets")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	targets, err := m.GetTufTargetMirrors()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Greater(t, len(targets), 0)
 
 	// check for image layer annotations
 	for _, target := range targets {
 		img := *target.Image
 		mf, err := img.RawManifest()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// unmarshal manifest with annotations
 		l := &Layers{}
 		err = json.Unmarshal(mf, l)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// check that layers are annotated
 		for _, layer := range l.Layers {
@@ -61,10 +61,10 @@ func TestTargetDelegationMetadata(t *testing.T) {
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
 	tm, err := NewTufMirror(embed.DevRoot, path, server.URL+"/metadata", server.URL+"/targets")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	targets, err := tm.TufClient.LoadDelegatedTargets("test-role", "targets")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Greater(t, len(targets.Signed.Targets), 0)
 }
 
@@ -74,22 +74,22 @@ func TestGetDelegatedTargetMirrors(t *testing.T) {
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
 	m, err := NewTufMirror(embed.DevRoot, path, server.URL+"/metadata", server.URL+"/targets")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	mirrors, err := m.GetDelegatedTargetMirrors()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Greater(t, len(mirrors), 0)
 
 	// check for index image annotations
 	for _, mirror := range mirrors {
 		idx := *mirror.Index
 		mf, err := idx.RawManifest()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// unmarshal manifest with annotations
 		l := &Layers{}
 		err = json.Unmarshal(mf, l)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// check that layers are annotated
 		for _, layer := range l.Layers {

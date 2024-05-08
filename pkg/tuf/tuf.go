@@ -44,7 +44,7 @@ func NewTufClient(initialRoot []byte, tufPath, metadataSource, targetsSource str
 		tufSource = OciSource
 	}
 
-	tufRootDigest := util.HexHashBytes(initialRoot)
+	tufRootDigest := util.SHA256Hex(initialRoot)
 
 	// create a directory for each initial root.json
 	metadataPath := filepath.Join(tufPath, tufRootDigest)

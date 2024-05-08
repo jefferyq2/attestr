@@ -38,7 +38,7 @@ func (s *ECDSA256_SignerVerifier) Verify(ctx context.Context, data []byte, sig [
 	if !ok {
 		return fmt.Errorf("public key is not ecdsa")
 	}
-	ok = ecdsa.VerifyASN1(pub, util.S256(data), sig)
+	ok = ecdsa.VerifyASN1(pub, util.SHA256(data), sig)
 	if !ok {
 		return fmt.Errorf("payload signature is not valid")
 	}
