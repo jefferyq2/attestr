@@ -121,7 +121,7 @@ func verifySignature(ctx context.Context, sig Signature, payload []byte, keys Ke
 		return fmt.Errorf("error failed to decode signature: %w", err)
 	}
 	// verify payload ecdsa signature
-	ok = ecdsa.VerifyASN1(publicKey, util.S256(payload), signature)
+	ok = ecdsa.VerifyASN1(publicKey, util.SHA256(payload), signature)
 	if !ok {
 		return fmt.Errorf("payload signature is not valid")
 	}

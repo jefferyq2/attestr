@@ -19,7 +19,7 @@ func SignDSSE(ctx context.Context, payload []byte, payloadType string, signer ds
 	encPayload := dsse.PAE(payloadType, payload)
 
 	// statement message digest
-	hash := util.S256(encPayload)
+	hash := util.SHA256(encPayload)
 
 	// sign message digest
 	sig, err := signer.Sign(ctx, hash)

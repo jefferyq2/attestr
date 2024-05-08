@@ -5,14 +5,11 @@ import (
 	"encoding/hex"
 )
 
-func HexHashBytes(input []byte) string {
-	s256 := sha256.New()
-	s256.Write(input)
-	hashSum := s256.Sum(nil)
-	return hex.EncodeToString(hashSum)
+func SHA256Hex(input []byte) string {
+	return hex.EncodeToString(SHA256(input))
 }
 
-func S256(data []byte) []byte {
+func SHA256(data []byte) []byte {
 	h := sha256.Sum256(data)
 	return h[:]
 }

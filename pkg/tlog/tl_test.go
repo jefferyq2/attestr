@@ -44,7 +44,7 @@ func TestCreateX509Cert(t *testing.T) {
 func TestUploadAndVerifyLogEntry(t *testing.T) {
 	// message digest
 	payload := []byte("test")
-	hash := util.S256(payload)
+	hash := util.SHA256(payload)
 
 	// generate ephemeral keys to sign message digest
 	signer, err := signerverifier.GenKeyPair()
