@@ -3,6 +3,7 @@ package attestation
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -64,10 +65,7 @@ func GetAttestationsFromImage(image v1.Image) ([]AttestationLayer, error) {
 			return nil, fmt.Errorf("failed to get descriptor for layer: %w", err)
 		}
 		// copy original annotations
-		ann := make(map[string]string)
-		for k, v := range layerDesc.Annotations {
-			ann[k] = v
-		}
+		ann := maps.Clone(layerDesc.Annotations)
 		// only decode intoto statements
 		var stmt = new(intoto.Statement)
 		if mt == types.MediaType(intoto.PayloadType) {
