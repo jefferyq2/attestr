@@ -22,12 +22,10 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/testcontainers/testcontainers-go/modules/registry v0.31.0
-	github.com/theupdateframework/go-tuf/v2 v2.0.0-20240402164131-b2e024ad4752
+	github.com/theupdateframework/go-tuf/v2 v2.0.0-20240504210147-1ab2a38c01b0 // for https://github.com/theupdateframework/go-tuf/pull/632
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.4.0
 )
-
-replace github.com/theupdateframework/go-tuf/v2 => github.com/mrjoelkamp/go-tuf/v2 v2.0.1 // for https://github.com/theupdateframework/go-tuf/pull/632
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
