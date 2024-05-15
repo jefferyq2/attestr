@@ -29,7 +29,7 @@ type regoEvaluator struct {
 func NewRegoEvaluator(debug bool) PolicyEvaluator {
 	return &regoEvaluator{
 		debug: debug,
-		query: "data.attest.allow",
+		query: "data.attest.digest",
 	}
 }
 
