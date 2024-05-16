@@ -20,10 +20,6 @@ const (
 	PolicyMappingFileName = "mapping.yaml"
 )
 
-var (
-	PolicyFileNames = []string{"data.yaml", "policy.rego"}
-)
-
 type PolicyMappings struct {
 	Version  string          `json:"version"`
 	Kind     string          `json:"kind"`
@@ -32,10 +28,14 @@ type PolicyMappings struct {
 }
 
 type PolicyMapping struct {
-	Name        string       `json:"namespace"`
-	Location    string       `json:"location"`
-	Description string       `json:"description"`
-	Origin      PolicyOrigin `json:"origin"`
+	Name        string              `json:"namespace"`
+	Description string              `json:"description"`
+	Origin      PolicyOrigin        `json:"origin"`
+	Files       []PolicyMappingFile `json:"files"`
+}
+
+type PolicyMappingFile struct {
+	Path string `json:"path"`
 }
 
 type PolicyMirror struct {
@@ -75,9 +75,10 @@ func resolveLocalPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyF
 	if opts.LocalPolicyDir == "" {
 		return nil, fmt.Errorf("local policy dir not set")
 	}
-	files := make([]*PolicyFile, 0, len(PolicyFileNames))
-	for _, filename := range PolicyFileNames {
-		filePath := path.Join(opts.LocalPolicyDir, mapping.Location, filename)
+	files := make([]*PolicyFile, 0, len(mapping.Files))
+	for _, f := range mapping.Files {
+		filename := f.Path
+		filePath := path.Join(opts.LocalPolicyDir, filename)
 		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read policy file %s: %w", filename, err)
@@ -108,10 +109,10 @@ func loadLocalMappings(opts *PolicyOptions) (*PolicyMappings, error) {
 }
 
 func resolveTufPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyFile, error) {
-	files := make([]*PolicyFile, 0, len(PolicyFileNames))
-	for _, filename := range PolicyFileNames {
-		filePath := path.Join(mapping.Location, filename)
-		_, fileContents, err := opts.TufClient.DownloadTarget(filePath, filepath.Join(opts.LocalTargetsDir, filePath))
+	files := make([]*PolicyFile, 0, len(mapping.Files))
+	for _, f := range mapping.Files {
+		filename := f.Path
+		_, fileContents, err := opts.TufClient.DownloadTarget(filename, filepath.Join(opts.LocalTargetsDir, filename))
 		if err != nil {
 			return nil, fmt.Errorf("failed to download policy file %s: %w", filename, err)
 		}
