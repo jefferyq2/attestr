@@ -65,7 +65,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, input: defaultInput, resolver: defaultResolver},
 		{repo: MockTufRepo, expectSuccess: true, input: &policy.PolicyInput{
 			Digest:      "sha256:da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620",
-			Purl:        "pkg:docker/test-image@test?platform=linux%2Famd64",
+			Purl:        "pkg:docker/test-image?digest=sha256%da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620&platform=linux%2Famd64",
 			IsCanonical: true,
 		}, resolver: vsaResolver},
 		{repo: MockTufRepo, expectSuccess: true, input: &policy.PolicyInput{
