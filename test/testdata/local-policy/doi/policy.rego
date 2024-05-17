@@ -35,12 +35,12 @@ valid_subject(sub) if {
 }
 
 valid_subject_name(name) if {
-	input.canonical
+	input.isCanonical
 	print("is canonical, ignoring name")
 }
 
 valid_subject_name(name) if {
-	not input.canonical
+	not input.isCanonical
 	print("valid_subject_name...")
 	print("name:", name)
 	print("input.purl:", input.purl)
