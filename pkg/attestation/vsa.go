@@ -34,12 +34,6 @@ type VSAInputAttestation struct {
 	MediaType string            `json:"mediaType"`
 }
 
-type VSAOptions struct {
-	BuildLevel string
-	PolicyURI  string
-	VerifierID string
-}
-
 func ToVSAResourceURI(sub intoto.Subject) (string, error) {
 	//parse purl
 	purl, err := packageurl.FromString(sub.Name)

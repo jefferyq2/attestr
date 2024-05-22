@@ -23,17 +23,20 @@ import (
 
 type regoEvaluator struct {
 	debug bool
-	query string
 }
+
+const (
+	DefaultQuery  = "result := data.attest.result"
+	resultBinding = "result"
+)
 
 func NewRegoEvaluator(debug bool) PolicyEvaluator {
 	return &regoEvaluator{
 		debug: debug,
-		query: "data.attest.allow",
 	}
 }
 
-func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, files []*PolicyFile, input *PolicyInput) (*rego.ResultSet, error) {
+func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *PolicyInput) (*Result, error) {
 	var regoOpts []func(*rego.Rego)
 
 	// Create a new in-memory store
@@ -45,7 +48,7 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 		return nil, err
 	}
 
-	for _, target := range files {
+	for _, target := range pctx.InputFiles {
 		// load yaml as data (no rego opt for this!?)
 		if filepath.Ext(target.Path) == ".yaml" {
 			yamlData, err := loadYAML(target.Path, target.Content)
@@ -74,12 +77,15 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 			rego.Dump(os.Stderr),
 		)
 	}
-
+	query := DefaultQuery
+	if pctx.Query != "" {
+		query = pctx.Query
+	}
 	regoOpts = append(regoOpts,
-		rego.Query(re.query),
-		rego.StrictBuiltinErrors(true),
+		rego.Query(query),
 		rego.Input(input),
 		rego.Store(store),
+		rego.GenerateJSON(jsonGenerator[Result]()),
 	)
 	for _, custom := range RegoFunctions(resolver) {
 		regoOpts = append(regoOpts, custom.Func)
@@ -87,11 +93,50 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 
 	r := rego.New(regoOpts...)
 	rs, err := r.Eval(ctx)
-	return &rs, err
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rs) == 0 {
+		return nil, fmt.Errorf("no policy evaluation result")
+	}
+	binding, ok := rs[0].Bindings[resultBinding]
+	if !ok {
+		return nil, fmt.Errorf("failed to extract verification result")
+	}
+	result, ok := binding.(Result)
+	if !ok {
+		return nil, fmt.Errorf("failed to extract verification result")
+	}
+
+	return &result, nil
+}
+
+func jsonGenerator[T any]() func(t *ast.Term, ec *rego.EvalContext) (any, error) {
+	return func(t *ast.Term, ec *rego.EvalContext) (any, error) {
+		// TODO: this is horrible - we're converting the AST to JSON and then back to AST, then using ast.As to convert it to a struct
+		// We can't use ast.As directly because it fails if the AST contains a set
+		json, err := ast.JSON(t.Value)
+		if err != nil {
+			return nil, err
+		}
+		v, err := ast.InterfaceToValue(json)
+		if err != nil {
+			return nil, err
+		}
+		var result T
+		err = ast.As(v, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
 }
 
 var dynamicObj = types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))
 var arrayObj = types.NewArray(nil, dynamicObj)
+var setObj = types.NewSet(dynamicObj)
+
 var verifyDecl = &ast.Builtin{
 	Name:             "attestations.verify_envelope",
 	Decl:             types.NewFunction(types.Args(dynamicObj, arrayObj), dynamicObj),
@@ -99,7 +144,7 @@ var verifyDecl = &ast.Builtin{
 }
 var attestDecl = &ast.Builtin{
 	Name:             "attestations.attestation",
-	Decl:             types.NewFunction(types.Args(types.S), dynamicObj),
+	Decl:             types.NewFunction(types.Args(types.S), setObj),
 	Nondeterministic: true,
 }
 
@@ -153,12 +198,13 @@ func fetchIntotoAttestations(resolver oci.AttestationResolver) func(rego.Builtin
 			values[i] = ast.NewTerm(value)
 		}
 
-		// Wrap the values in an ast.Array and convert it to an ast.Term.
-		array := ast.NewTerm(ast.NewArray(values...))
+		// Wrap the values in an ast.Set and convert it to an ast.Term.
+		set := ast.NewTerm(ast.NewSet(values...))
 
-		return array, nil
+		return set, nil
 	}
 }
+
 func verifyIntotoEnvelope(rCtx rego.BuiltinContext, envTerm, keysTerm *ast.Term) (*ast.Term, error) {
 	env := new(att.Envelope)
 	var keys att.Keys

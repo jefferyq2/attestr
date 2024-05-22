@@ -59,14 +59,16 @@ func ExampleVerify_remote() {
 	}
 
 	// verify attestations
-	policy, err := attest.Verify(context.Background(), opts, resolver)
+	result, err := attest.Verify(context.Background(), opts, resolver)
 	if err != nil {
-		panic(err) // failed policy or attestation signature verification
+		panic(err)
 	}
-	if policy {
-		fmt.Printf("policy passed: %v\n", policy)
-		return // passed policy
+	switch result.Outcome {
+	case attest.OutcomeSuccess:
+		fmt.Println("policy passed")
+	case attest.OutcomeNoPolicy:
+		fmt.Println("no policy for image")
+	case attest.OutcomeFailure:
+		fmt.Println("policy failed")
 	}
-	// no policy found for image
-	fmt.Printf("no policy for image")
 }

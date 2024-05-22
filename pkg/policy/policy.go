@@ -12,6 +12,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/tuf"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
 
 	goyaml "gopkg.in/yaml.v3"
 )
@@ -19,6 +20,26 @@ import (
 const (
 	PolicyMappingFileName = "mapping.yaml"
 )
+
+type Summary struct {
+	Subjects   []intoto.Subject `json:"subjects"`
+	SLSALevels []string         `json:"slsa_levels"`
+	Verifier   string           `json:"verifier"`
+	PolicyURI  string           `json:"policy_uri"`
+}
+
+type Violation struct {
+	Type        string            `json:"type"`
+	Description string            `json:"description"`
+	Attestation *intoto.Statement `json:"attestation"`
+	Details     map[string]any    `json:"details"`
+}
+
+type Result struct {
+	Success    bool        `json:"success"`
+	Violations []Violation `json:"violations"`
+	Summary    Summary     `json:"summary"`
+}
 
 type PolicyMappings struct {
 	Version  string          `json:"version"`
@@ -39,7 +60,7 @@ type PolicyMappingFile struct {
 }
 
 type PolicyMirror struct {
-	PolicyId string     `json:"policy-id"`
+	PolicyId string     `yaml:"policy-id"`
 	Mirror   MirrorSpec `json:"mirror"`
 }
 
@@ -60,6 +81,11 @@ type PolicyOptions struct {
 	LocalPolicyDir  string
 }
 
+type Policy struct {
+	InputFiles []*PolicyFile
+	Query      string
+}
+
 type PolicyInput struct {
 	Digest      string `json:"digest"`
 	Purl        string `json:"purl"`
@@ -71,7 +97,7 @@ type PolicyFile struct {
 	Content []byte
 }
 
-func resolveLocalPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyFile, error) {
+func resolveLocalPolicy(opts *PolicyOptions, mapping *PolicyMapping) (*Policy, error) {
 	if opts.LocalPolicyDir == "" {
 		return nil, fmt.Errorf("local policy dir not set")
 	}
@@ -88,10 +114,13 @@ func resolveLocalPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyF
 			Content: fileContents,
 		})
 	}
-	return files, nil
+	policy := &Policy{
+		InputFiles: files,
+	}
+	return policy, nil
 }
 
-func loadLocalMappings(opts *PolicyOptions) (*PolicyMappings, error) {
+func LoadLocalMappings(opts *PolicyOptions) (*PolicyMappings, error) {
 	if opts.LocalPolicyDir == "" {
 		return nil, nil
 	}
@@ -108,7 +137,7 @@ func loadLocalMappings(opts *PolicyOptions) (*PolicyMappings, error) {
 	return mappings, nil
 }
 
-func resolveTufPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyFile, error) {
+func resolveTufPolicy(opts *PolicyOptions, mapping *PolicyMapping) (*Policy, error) {
 	files := make([]*PolicyFile, 0, len(mapping.Files))
 	for _, f := range mapping.Files {
 		filename := f.Path
@@ -121,7 +150,10 @@ func resolveTufPolicy(opts *PolicyOptions, mapping *PolicyMapping) ([]*PolicyFil
 			Content: fileContents,
 		})
 	}
-	return files, nil
+	policy := &Policy{
+		InputFiles: files,
+	}
+	return policy, nil
 }
 
 func loadTufMappings(tufClient tuf.TUFClient, localTargetsDir string) (*PolicyMappings, error) {
@@ -163,7 +195,7 @@ func findPolicyMatch(named reference.Named, mappings *PolicyMappings) (*PolicyMa
 	return nil, nil
 }
 
-func ResolvePolicy(ctx context.Context, resolver oci.AttestationResolver, opts *PolicyOptions) ([]*PolicyFile, error) {
+func ResolvePolicy(ctx context.Context, resolver oci.AttestationResolver, opts *PolicyOptions) (*Policy, error) {
 	imageName, err := resolver.ImageName(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image name: %w", err)
@@ -172,7 +204,7 @@ func ResolvePolicy(ctx context.Context, resolver oci.AttestationResolver, opts *
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse image name: %w", err)
 	}
-	localMappings, err := loadLocalMappings(opts)
+	localMappings, err := LoadLocalMappings(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local policy mappings: %w", err)
 	}

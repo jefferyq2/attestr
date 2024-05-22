@@ -8,11 +8,17 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
-	"github.com/open-policy-agent/opa/rego"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -43,19 +49,135 @@ func TestVerifyAttestations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			mockPE := policy.MockPolicyEvaluator{
-				EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, pfs []*policy.PolicyFile, input *policy.PolicyInput) (*rego.ResultSet, error) {
+				EvaluateFunc: func(ctx context.Context, resolver oci.AttestationResolver, pctx *policy.Policy, input *policy.PolicyInput) (*policy.Result, error) {
 					return policy.AllowedResult(), tc.policyEvaluationError
 				},
 			}
 
 			ctx := policy.WithPolicyEvaluator(context.Background(), &mockPE)
-			err = VerifyAttestations(ctx, resolver, nil)
+			_, err := VerifyAttestations(ctx, resolver, nil)
 			if tc.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tc.expectedError.Error(), err.Error())
+				if assert.Error(t, err) {
+					assert.Equal(t, tc.expectedError.Error(), err.Error())
+				}
 			} else {
 				assert.NoError(t, err)
 			}
 		})
 	}
+}
+
+func TestVSA(t *testing.T) {
+	ctx, signer := test.Setup(t)
+	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
+	// setup an image with signed attestations
+	outputLayout := test.CreateTempDir(t, "", TestTempDir)
+
+	opts := &SigningOptions{
+		Replace: true,
+	}
+	attIdx, err := oci.AttestationIndexFromPath(UnsignedTestImage)
+	assert.NoError(t, err)
+	signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
+	assert.NoError(t, err)
+
+	// output signed attestations
+	idx := v1.ImageIndex(empty.Index)
+	idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
+		Add: signedIndex,
+		Descriptor: v1.Descriptor{
+			Annotations: map[string]string{
+				oci.OciReferenceTarget: attIdx.Name,
+			},
+		},
+	})
+	_, err = layout.Write(outputLayout, idx)
+	assert.NoError(t, err)
+
+	//verify (without vsa should fail)
+	resolver := &oci.OCILayoutResolver{
+		Path:     outputLayout,
+		Platform: "linux/amd64",
+	}
+
+	// mocked vsa query should pass
+	policyOpts := &policy.PolicyOptions{
+		LocalPolicyDir: PassPolicyDir,
+	}
+	results, err := Verify(ctx, policyOpts, resolver)
+	require.NoError(t, err)
+	assert.Equal(t, OutcomeSuccess, results.Outcome)
+	assert.Empty(t, results.Violations)
+
+	assert.Equal(t, intoto.StatementInTotoV01, results.VSA.Type)
+	assert.Equal(t, attestation.VSAPredicateType, results.VSA.PredicateType)
+	assert.Len(t, results.VSA.Subject, 1)
+
+	require.IsType(t, attestation.VSAPredicate{}, results.VSA.Predicate)
+	attestationPredicate := results.VSA.Predicate.(attestation.VSAPredicate)
+
+	assert.Equal(t, "PASSED", attestationPredicate.VerificationResult)
+	assert.Equal(t, "docker-official-images", attestationPredicate.Verifier.ID)
+	assert.Equal(t, []string{"SLSA_BUILD_LEVEL_3"}, attestationPredicate.VerifiedLevels)
+	assert.Equal(t, "https://docker.com/official/policy/v0.1", attestationPredicate.Policy.URI)
+}
+
+func TestVerificationFailure(t *testing.T) {
+	ctx, signer := test.Setup(t)
+	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
+	// setup an image with signed attestations
+	outputLayout := test.CreateTempDir(t, "", TestTempDir)
+
+	opts := &SigningOptions{
+		Replace: true,
+	}
+	attIdx, err := oci.AttestationIndexFromPath(UnsignedTestImage)
+	assert.NoError(t, err)
+	signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
+	assert.NoError(t, err)
+
+	// output signed attestations
+	idx := v1.ImageIndex(empty.Index)
+	idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
+		Add: signedIndex,
+		Descriptor: v1.Descriptor{
+			Annotations: map[string]string{
+				oci.OciReferenceTarget: attIdx.Name,
+			},
+		},
+	})
+	_, err = layout.Write(outputLayout, idx)
+	assert.NoError(t, err)
+
+	//verify (without vsa should fail)
+	resolver := &oci.OCILayoutResolver{
+		Path:     outputLayout,
+		Platform: "linux/amd64",
+	}
+
+	// mocked vsa query should pass
+	policyOpts := &policy.PolicyOptions{
+		LocalPolicyDir: FailPolicyDir,
+	}
+	results, err := Verify(ctx, policyOpts, resolver)
+	require.NoError(t, err)
+	assert.Equal(t, OutcomeFailure, results.Outcome)
+	assert.Len(t, results.Violations, 1)
+
+	violation := results.Violations[0]
+	assert.Equal(t, "missing_attestation", violation.Type)
+	assert.Equal(t, "Attestation missing for subject", violation.Description)
+	assert.Nil(t, violation.Attestation)
+
+	assert.Equal(t, intoto.StatementInTotoV01, results.VSA.Type)
+	assert.Equal(t, attestation.VSAPredicateType, results.VSA.PredicateType)
+	assert.Len(t, results.VSA.Subject, 1)
+
+	require.IsType(t, attestation.VSAPredicate{}, results.VSA.Predicate)
+	attestationPredicate := results.VSA.Predicate.(attestation.VSAPredicate)
+
+	assert.Equal(t, "FAILED", attestationPredicate.VerificationResult)
+	assert.Equal(t, "docker-official-images", attestationPredicate.Verifier.ID)
+	assert.Equal(t, []string{"SLSA_BUILD_LEVEL_3"}, attestationPredicate.VerifiedLevels)
+	assert.Equal(t, "https://docker.com/official/policy/v0.1", attestationPredicate.Policy.URI)
 }

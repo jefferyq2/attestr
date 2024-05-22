@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -82,7 +83,11 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 }
 
 func GetMockSigner(ctx context.Context) (dsse.SignerVerifier, error) {
-	return signerverifier.GenKeyPair()
+	priv, err := os.ReadFile(filepath.Join("..", "..", "test", "testdata", "test-signing-key.pem"))
+	if err != nil {
+		return nil, err
+	}
+	return signerverifier.LoadKeyPair(priv)
 }
 
 type AnnotatedStatement struct {
@@ -115,7 +120,7 @@ func ExtractAnnotatedStatements(path string, mediaType string) ([]*AnnotatedStat
 	var statements []*AnnotatedStatement
 
 	for _, mf := range mfs2.Manifests {
-		if mf.Annotations["vnd.docker.reference.type"] != "attestation-manifest" {
+		if mf.Annotations[attestation.DockerReferenceType] != "attestation-manifest" {
 			continue
 		}
 

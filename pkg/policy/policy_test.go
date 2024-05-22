@@ -12,6 +12,7 @@ import (
 	"github.com/docker/attest/pkg/policy"
 	"github.com/docker/attest/pkg/tuf"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func loadAttestation(t *testing.T, path string) *attestation.Envelope {
@@ -32,61 +33,37 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 	ctx, _ := test.Setup(t)
 
 	TestDataPath := filepath.Join("..", "..", "test", "testdata")
-	MockTufRepo := filepath.Join(TestDataPath, "local-policy")
 	ExampleAttestation := filepath.Join(TestDataPath, "example_attestation.json")
-	VSA := filepath.Join(TestDataPath, "vsa.json")
 
 	re := policy.NewRegoEvaluator(true)
-
-	defaultInput := &policy.PolicyInput{
-		Digest:      "sha256:test-digest",
-		Purl:        "test-purl",
-		IsCanonical: true,
-	}
 
 	defaultResolver := oci.MockResolver{
 		Envs: []*attestation.Envelope{loadAttestation(t, ExampleAttestation)},
 	}
 
-	vsaResolver := oci.MockResolver{
-		Envs: []*attestation.Envelope{loadAttestation(t, ExampleAttestation), loadAttestation(t, VSA)},
-	}
-
 	testCases := []struct {
 		repo          string
 		expectSuccess bool
-		input         *policy.PolicyInput
+		isCanonical   bool
 		resolver      oci.AttestationResolver
 		policy        *policy.PolicyOptions
 	}{
-		{repo: "testdata/mock-tuf-allow", expectSuccess: true, input: defaultInput, resolver: defaultResolver},
-		{repo: "testdata/mock-tuf-deny", expectSuccess: false, input: defaultInput, resolver: defaultResolver},
-		{repo: "testdata/mock-tuf-verify-sig", expectSuccess: true, input: defaultInput, resolver: defaultResolver},
-		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, input: defaultInput, resolver: defaultResolver},
-		{repo: MockTufRepo, expectSuccess: true, input: &policy.PolicyInput{
-			Digest:      "sha256:da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620",
-			Purl:        "pkg:docker/test-image?digest=sha256%da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620&platform=linux%2Famd64",
-			IsCanonical: true,
-		}, resolver: vsaResolver},
-		{repo: MockTufRepo, expectSuccess: true, input: &policy.PolicyInput{
-			Digest:      "sha256:da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620",
-			Purl:        "pkg:docker/test-image@test?platform=linux%2Famd64",
-			IsCanonical: false,
-		}, resolver: vsaResolver},
-		// not a doi
-		{repo: MockTufRepo, expectSuccess: false, input: defaultInput, resolver: vsaResolver, policy: &policy.PolicyOptions{
-			LocalPolicyDir: "testdata/mock-tuf-deny",
-		}},
-		// digest mismatch
-		{repo: MockTufRepo, expectSuccess: false, input: &policy.PolicyInput{
-			Digest:      "sha256:test-digest-wrong",
-			Purl:        "test-purl",
-			IsCanonical: false,
-		}, resolver: vsaResolver},
+		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-deny", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-verify-sig", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: true, isCanonical: true, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.repo, func(t *testing.T) {
+			input := &policy.PolicyInput{
+				Digest:      "sha256:test-digest",
+				Purl:        "test-purl",
+				IsCanonical: tc.isCanonical,
+			}
+
 			tufClient := tuf.NewMockTufClient(tc.repo, test.CreateTempDir(t, "", "tuf-dest"))
 			if tc.policy == nil {
 				tc.policy = &policy.PolicyOptions{
@@ -95,17 +72,29 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 				}
 			}
 
-			policyFiles, err := policy.ResolvePolicy(ctx, tc.resolver, tc.policy)
+			policy, err := policy.ResolvePolicy(ctx, tc.resolver, tc.policy)
 			assert.NoErrorf(t, err, "failed to resolve policy")
-			rs, err := re.Evaluate(ctx, tc.resolver, policyFiles, tc.input)
+			result, err := re.Evaluate(ctx, tc.resolver, policy, input)
+			require.NoErrorf(t, err, "Evaluate failed")
 
 			if tc.expectSuccess {
-				assert.NoErrorf(t, err, "Evaluate failed")
-				assert.True(t, rs.Allowed(), "Evaluate should have succeeded")
+				assert.True(t, result.Success, "Evaluate should have succeeded")
 			} else {
-				assert.False(t, rs.Allowed(), "Evaluate should have failed")
+				assert.False(t, result.Success, "Evaluate should have failed")
 			}
 		})
 	}
 
+}
+
+func TestLoadingMappings(t *testing.T) {
+	opts := &policy.PolicyOptions{
+		LocalPolicyDir: filepath.Join("testdata", "mock-tuf-allow"),
+	}
+	policyMappings, err := policy.LoadLocalMappings(opts)
+	require.NoError(t, err)
+	assert.Equal(t, len(policyMappings.Mirrors), 1)
+	for _, mirror := range policyMappings.Mirrors {
+		assert.Equal(t, "docker-official-images", mirror.PolicyId)
+	}
 }
