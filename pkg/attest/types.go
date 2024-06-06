@@ -12,10 +12,6 @@ const (
 	LifecycleStageExperimental    = "experimental"
 )
 
-type SigningOptions struct {
-	Replace bool
-}
-
 type Outcome string
 
 const (

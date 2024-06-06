@@ -66,6 +66,17 @@ type DockerTlExtension struct {
 	Data any    `json:"data"`
 }
 
+type VerifyOptions struct {
+	Keys   []KeyMetadata `json:"keys"`
+	SkipTL bool          `json:"skip_tl"`
+}
+
+type SigningOptions struct {
+	Replace     bool
+	SkipTL      bool
+	PayloadType string
+}
+
 func DSSEMediaType(predicateType string) (string, error) {
 	var predicateName string
 	switch predicateType {
