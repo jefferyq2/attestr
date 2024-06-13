@@ -42,7 +42,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 		replace              bool
 	}{
 
-		{"signed replaced (does nothing)", UnsignedTestImage, 0, 4, true},
+		{"signed replaced", UnsignedTestImage, 0, 4, true},
 		{"without replace", UnsignedTestImage, 4, 4, false},
 		// image without provenance doesn't fail
 		{"no provenance (replace)", NoProvenanceImage, 0, 2, true},
@@ -57,7 +57,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			opts := &attestation.SigningOptions{
 				Replace: tc.replace,
 			}
-			attIdx, err := oci.AttestationIndexFromPath(tc.TestImage)
+			attIdx, err := oci.SubjectIndexFromPath(tc.TestImage)
 			require.NoError(t, err)
 			signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
 			require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestAddAttestation(t *testing.T) {
 	expectedStatements := 4
 
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
-	attIdx, err := oci.AttestationIndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.SubjectIndexFromPath(UnsignedTestImage)
 	require.NoError(t, err)
 
 	statementToAdd := &intoto.Statement{
@@ -200,6 +200,7 @@ func TestAddSignedLayerAnnotations(t *testing.T) {
 						},
 					},
 				},
+				SubjectDescriptor: &v1.Descriptor{},
 			}
 			newImg, err := addSignedLayers(signedLayers, manifest, opts)
 			require.NoError(t, err)
