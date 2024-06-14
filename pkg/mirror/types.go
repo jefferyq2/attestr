@@ -32,12 +32,12 @@ type DelegatedTargetMetadata struct {
 }
 
 type MirrorImage struct {
-	Image *v1.Image
+	Image v1.Image
 	Tag   string
 }
 
 type MirrorIndex struct {
-	Index *v1.ImageIndex
+	Index v1.ImageIndex
 	Tag   string
 }
 

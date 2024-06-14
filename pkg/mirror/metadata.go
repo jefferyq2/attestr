@@ -17,7 +17,7 @@ import (
 // -----------------
 
 // GetMetadataManifest returns an image with TUF root metadata as layers
-func (m *TufMirror) GetMetadataManifest(metadataURL string) (*v1.Image, error) {
+func (m *TufMirror) GetMetadataManifest(metadataURL string) (v1.Image, error) {
 	metadata, err := m.getTufMetadataMirror(metadataURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
@@ -78,7 +78,7 @@ func (m *TufMirror) getTufMetadataMirror(metadataURL string) (*TufMetadata, erro
 }
 
 // buildMetadataManifest returns an OCI image with TUF metadata as layers with annotations
-func (m *TufMirror) buildMetadataManifest(metadata *TufMetadata) (*v1.Image, error) {
+func (m *TufMirror) buildMetadataManifest(metadata *TufMetadata) (v1.Image, error) {
 	img := empty.Image
 	img = mutate.MediaType(img, types.OCIManifestSchema1)
 	img = mutate.ConfigMediaType(img, types.OCIConfigJSON)
@@ -87,17 +87,17 @@ func (m *TufMirror) buildMetadataManifest(metadata *TufMetadata) (*v1.Image, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to make role layer: %w", err)
 		}
-		img, err = mutate.Append(img, *layers...)
+		img, err = mutate.Append(img, layers...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append role layer to image: %w", err)
 		}
 	}
-	return &img, nil
+	return img, nil
 }
 
 // makeRoleLayers returns a list of layers for a given TUF role
-func (m *TufMirror) makeRoleLayers(role TufRole, tufMetadata *TufMetadata) (*[]mutate.Addendum, error) {
-	layers := new([]mutate.Addendum)
+func (m *TufMirror) makeRoleLayers(role TufRole, tufMetadata *TufMetadata) ([]mutate.Addendum, error) {
+	var layers []mutate.Addendum
 	ann := map[string]string{tufFileAnnotation: ""}
 	switch role {
 	case metadata.ROOT:
@@ -108,7 +108,7 @@ func (m *TufMirror) makeRoleLayers(role TufRole, tufMetadata *TufMetadata) (*[]m
 		layers = m.annotatedMetaLayers(tufMetadata.Targets)
 	case metadata.TIMESTAMP:
 		ann[tufFileAnnotation] = fmt.Sprintf("%s.json", role)
-		*layers = append(*layers, mutate.Addendum{Layer: static.NewLayer(tufMetadata.Timestamp, tufMetadataMediaType), Annotations: ann})
+		layers = append(layers, mutate.Addendum{Layer: static.NewLayer(tufMetadata.Timestamp, tufMetadataMediaType), Annotations: ann})
 	default:
 		return nil, fmt.Errorf("unsupported TUF role: %s", role)
 	}
@@ -116,11 +116,11 @@ func (m *TufMirror) makeRoleLayers(role TufRole, tufMetadata *TufMetadata) (*[]m
 }
 
 // annotatedMetaLayers returns a list of layers with annotations for each TUF metadata file
-func (m *TufMirror) annotatedMetaLayers(meta map[string][]byte) *[]mutate.Addendum {
-	layers := new([]mutate.Addendum)
+func (m *TufMirror) annotatedMetaLayers(meta map[string][]byte) []mutate.Addendum {
+	var layers []mutate.Addendum
 	for name, data := range meta {
 		ann := map[string]string{tufFileAnnotation: name}
-		*layers = append(*layers, mutate.Addendum{Layer: static.NewLayer(data, tufMetadataMediaType), Annotations: ann})
+		layers = append(layers, mutate.Addendum{Layer: static.NewLayer(data, tufMetadataMediaType), Annotations: ann})
 	}
 	return layers
 }
@@ -144,8 +144,8 @@ func (m *TufMirror) GetDelegatedMetadataMirrors() ([]*MirrorImage, error) {
 }
 
 // getDelegatedTargetsMetadata returns delegated targets metadata as a list of DelegatedTargetMetadata (role name and data)
-func (m *TufMirror) getDelegatedTargetsMetadata() (*[]DelegatedTargetMetadata, error) {
-	delegatedTargets := new([]DelegatedTargetMetadata)
+func (m *TufMirror) getDelegatedTargetsMetadata() ([]DelegatedTargetMetadata, error) {
+	var delegatedTargets []DelegatedTargetMetadata
 	md := m.TufClient.GetMetadata()
 	for _, role := range md.Targets[metadata.TARGETS].Signed.Delegations.Roles {
 		roleMetadata, err := m.TufClient.LoadDelegatedTargets(role.Name, metadata.TARGETS)
@@ -165,15 +165,15 @@ func (m *TufMirror) getDelegatedTargetsMetadata() (*[]DelegatedTargetMetadata, e
 		if md.Root.Signed.ConsistentSnapshot {
 			version = strconv.FormatInt(meta.Version, 10)
 		}
-		*delegatedTargets = append(*delegatedTargets, DelegatedTargetMetadata{Name: role.Name, Version: version, Data: roleBytes})
+		delegatedTargets = append(delegatedTargets, DelegatedTargetMetadata{Name: role.Name, Version: version, Data: roleBytes})
 	}
 	return delegatedTargets, nil
 }
 
 // buildDelegatedMetadataManifests returns a list of mirrors (image/tag pairs) for each delegated target role metadata
-func (m *TufMirror) buildDelegatedMetadataManifests(delegated *[]DelegatedTargetMetadata) ([]*MirrorImage, error) {
+func (m *TufMirror) buildDelegatedMetadataManifests(delegated []DelegatedTargetMetadata) ([]*MirrorImage, error) {
 	manifests := []*MirrorImage{}
-	for _, role := range *delegated {
+	for _, role := range delegated {
 		img := empty.Image
 		img = mutate.MediaType(img, types.OCIManifestSchema1)
 		img = mutate.ConfigMediaType(img, types.OCIConfigJSON)
@@ -183,7 +183,7 @@ func (m *TufMirror) buildDelegatedMetadataManifests(delegated *[]DelegatedTarget
 		if err != nil {
 			return nil, fmt.Errorf("failed to append delegated targets layer to image: %w", err)
 		}
-		manifests = append(manifests, &MirrorImage{Image: &img, Tag: role.Name})
+		manifests = append(manifests, &MirrorImage{Image: img, Tag: role.Name})
 	}
 	return manifests, nil
 }
