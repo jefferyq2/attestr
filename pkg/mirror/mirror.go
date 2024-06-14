@@ -26,7 +26,7 @@ func NewTufMirror(root []byte, tufPath, metadataURL, targetsURL string, versionC
 	return &TufMirror{TufClient: tufClient, tufPath: tufPath, metadataURL: metadataURL, targetsURL: targetsURL}, nil
 }
 
-func PushToRegistry(image any, imageName string) error {
+func PushImageToRegistry(image v1.Image, imageName string) error {
 	// Parse the image name
 	ref, err := name.ParseReference(imageName)
 	if err != nil {
@@ -38,45 +38,48 @@ func PushToRegistry(image any, imageName string) error {
 		log.Fatalf("Failed to get authenticator: %v", err)
 	}
 	// Push the image to the registry
-	switch image := image.(type) {
-	case v1.Image:
-		if err := remote.Write(ref, image, remote.WithAuth(auth)); err != nil {
-			return fmt.Errorf("failed to push image %s: %w", imageName, err)
-		}
-	case v1.ImageIndex:
-		if err := remote.WriteIndex(ref, image, remote.WithAuth(auth)); err != nil {
-			return fmt.Errorf("failed to push image index %s: %w", imageName, err)
-		}
-	default:
-		return fmt.Errorf("unknown image type")
-	}
-	return nil
+	return remote.Write(ref, image, remote.WithAuth(auth))
 }
 
-func SaveAsOCILayout(image any, path string) error {
+func PushIndexToRegistry(image v1.ImageIndex, imageName string) error {
+	// Parse the index name
+	ref, err := name.ParseReference(imageName)
+	if err != nil {
+		log.Fatalf("Failed to parse image name: %v", err)
+	}
+	// Get the authenticator from the default Docker keychain
+	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
+	if err != nil {
+		log.Fatalf("Failed to get authenticator: %v", err)
+	}
+	// Push the index to the registry
+	return remote.WriteIndex(ref, image, remote.WithAuth(auth))
+}
+
+func SaveImageAsOCILayout(image v1.Image, path string) error {
 	// Save the image to the local filesystem
 	err := os.MkdirAll(path, os.FileMode(0744))
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	switch image := image.(type) {
-	case v1.Image:
-		index := empty.Index
-		l, err := layout.Write(path, index)
-		if err != nil {
-			return fmt.Errorf("failed to create index: %w", err)
-		}
-		err = l.AppendImage(image)
-		if err != nil {
-			return fmt.Errorf("failed to append image to index: %w", err)
-		}
-	case v1.ImageIndex:
-		_, err := layout.Write(path, image)
-		if err != nil {
-			return fmt.Errorf("failed to create index: %w", err)
-		}
-	default:
-		return fmt.Errorf("unknown image type")
+	index := empty.Index
+	l, err := layout.Write(path, index)
+	if err != nil {
+		return fmt.Errorf("failed to create index: %w", err)
+	}
+	return l.AppendImage(image)
+}
+
+func SaveIndexAsOCILayout(image v1.ImageIndex, path string) error {
+	// Save the index to the local filesystem
+	err := os.MkdirAll(path, os.FileMode(0744))
+	if err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	_, err = layout.Write(path, image)
+	if err != nil {
+		return fmt.Errorf("failed to create index: %w", err)
 	}
 	return nil
 }
