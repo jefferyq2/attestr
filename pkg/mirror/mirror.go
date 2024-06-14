@@ -58,7 +58,7 @@ func PushIndexToRegistry(image v1.ImageIndex, imageName string) error {
 
 func SaveImageAsOCILayout(image v1.Image, path string) error {
 	// Save the image to the local filesystem
-	err := os.MkdirAll(path, os.FileMode(0755))
+	err := os.MkdirAll(path, os.FileMode(0777))
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
@@ -72,7 +72,7 @@ func SaveImageAsOCILayout(image v1.Image, path string) error {
 
 func SaveIndexAsOCILayout(image v1.ImageIndex, path string) error {
 	// Save the index to the local filesystem
-	err := os.MkdirAll(path, os.FileMode(0755))
+	err := os.MkdirAll(path, os.FileMode(0777))
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
