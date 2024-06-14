@@ -39,18 +39,16 @@ func PushToRegistry(image any, imageName string) error {
 	}
 	// Push the image to the registry
 	switch image := image.(type) {
-	case *v1.Image:
-		if err := remote.Write(ref, *image, remote.WithAuth(auth)); err != nil {
+	case v1.Image:
+		if err := remote.Write(ref, image, remote.WithAuth(auth)); err != nil {
 			return fmt.Errorf("failed to push image %s: %w", imageName, err)
 		}
-	case *v1.ImageIndex:
-		if err := remote.WriteIndex(ref, *image, remote.WithAuth(auth)); err != nil {
+	case v1.ImageIndex:
+		if err := remote.WriteIndex(ref, image, remote.WithAuth(auth)); err != nil {
 			return fmt.Errorf("failed to push image index %s: %w", imageName, err)
 		}
 	default:
-		if err := remote.WriteIndex(ref, image.(v1.ImageIndex), remote.WithAuth(auth)); err != nil {
-			return fmt.Errorf("failed to push image index %s: %w", imageName, err)
-		}
+		return fmt.Errorf("unknown image type")
 	}
 	return nil
 }
@@ -62,26 +60,23 @@ func SaveAsOCILayout(image any, path string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 	switch image := image.(type) {
-	case *v1.Image:
+	case v1.Image:
 		index := empty.Index
 		l, err := layout.Write(path, index)
 		if err != nil {
 			return fmt.Errorf("failed to create index: %w", err)
 		}
-		err = l.AppendImage(*image)
+		err = l.AppendImage(image)
 		if err != nil {
 			return fmt.Errorf("failed to append image to index: %w", err)
 		}
-	case *v1.ImageIndex:
-		_, err := layout.Write(path, *image)
+	case v1.ImageIndex:
+		_, err := layout.Write(path, image)
 		if err != nil {
 			return fmt.Errorf("failed to create index: %w", err)
 		}
 	default:
-		_, err := layout.Write(path, image.(v1.ImageIndex))
-		if err != nil {
-			return fmt.Errorf("failed to create index: %w", err)
-		}
+		return fmt.Errorf("unknown image type")
 	}
 	return nil
 }
