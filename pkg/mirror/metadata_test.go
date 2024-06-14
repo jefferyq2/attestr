@@ -46,8 +46,7 @@ func TestGetMetadataManifest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, img)
 
-	image := *img
-	mf, err := image.RawManifest()
+	mf, err := img.RawManifest()
 	assert.NoError(t, err)
 
 	type Annotations struct {

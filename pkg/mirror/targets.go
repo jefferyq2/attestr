@@ -42,7 +42,7 @@ func (m *TufMirror) GetTufTargetMirrors() ([]*MirrorImage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to append role layer to image: %w", err)
 		}
-		targetMirrors = append(targetMirrors, &MirrorImage{Image: &img, Tag: name})
+		targetMirrors = append(targetMirrors, &MirrorImage{Image: img, Tag: name})
 	}
 	return targetMirrors, nil
 }
@@ -103,7 +103,7 @@ func (m *TufMirror) GetDelegatedTargetMirrors() ([]*MirrorIndex, error) {
 				},
 			})
 		}
-		mirror = append(mirror, &MirrorIndex{Index: &index, Tag: role.Name})
+		mirror = append(mirror, &MirrorIndex{Index: index, Tag: role.Name})
 	}
 	return mirror, nil
 }

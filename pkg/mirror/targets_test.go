@@ -36,7 +36,7 @@ func TestGetTufTargetsMirror(t *testing.T) {
 
 	// check for image layer annotations
 	for _, target := range targets {
-		img := *target.Image
+		img := target.Image
 		mf, err := img.RawManifest()
 		assert.NoError(t, err)
 
@@ -83,7 +83,7 @@ func TestGetDelegatedTargetMirrors(t *testing.T) {
 
 	// check for index image annotations
 	for _, mirror := range mirrors {
-		idx := *mirror.Index
+		idx := mirror.Index
 		mf, err := idx.RawManifest()
 		assert.NoError(t, err)
 

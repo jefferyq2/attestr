@@ -47,7 +47,7 @@ func ExampleSign_remote() {
 	}
 
 	// push image index with signed attestation-manifests
-	err = mirror.PushToRegistry(signedImageIndex, ref)
+	err = mirror.PushIndexToRegistry(signedImageIndex, ref)
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +62,7 @@ func ExampleSign_remote() {
 			},
 		},
 	})
-	err = mirror.SaveAsOCILayout(idx, path)
+	err = mirror.SaveIndexAsOCILayout(idx, path)
 	if err != nil {
 		panic(err)
 	}
