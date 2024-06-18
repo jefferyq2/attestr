@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"strings"
 
+	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
+	acr "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/containerd/containerd/platforms"
 	"github.com/distribution/reference"
 	att "github.com/docker/attest/pkg/attestation"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
@@ -456,7 +459,14 @@ func FetchAttestationManifest(ctx context.Context, image string, platform *v1.Pl
 
 func WithOptions(ctx context.Context, platform *v1.Platform) []remote.Option {
 	// prepare options
-	options := []remote.Option{remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithTransport(HttpTransport()), remote.WithContext(ctx)}
+	// Create a multi-keychain that will use the default Docker, Google, ECR or ACR keychain
+	keychain := authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		authn.NewKeychainFromHelper(ecr.NewECRHelper()),
+		authn.NewKeychainFromHelper(acr.NewACRCredentialsHelper()),
+	)
+	options := []remote.Option{remote.WithAuthFromKeychain(keychain), remote.WithTransport(HttpTransport()), remote.WithContext(ctx)}
 
 	// add in platform into remote Get operation; this might conflict with an explicit digest, but we are trying anyway
 	if platform != nil {

@@ -10,9 +10,12 @@ import (
 	"strings"
 	"time"
 
+	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
+	acr "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
@@ -118,13 +121,20 @@ func (d *RegistryFetcher) getManifest(ref string) ([]byte, error) {
 	var err error
 	var found bool
 	var mf []byte
+	// Create a multi-keychain that will use the default Docker, Google, ECR or ACR keychain
+	keychain := authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		authn.NewKeychainFromHelper(ecr.NewECRHelper()),
+		authn.NewKeychainFromHelper(acr.NewACRCredentialsHelper()),
+	)
 	// Check cache for manifest and only pull if not found
 	if mf, found = d.cache.Get(ref); !found {
 		mf, err = crane.Manifest(ref,
 			crane.WithUserAgent(d.httpUserAgent),
 			crane.WithTransport(transportWithTimeout(d.timeout)),
 			crane.WithAuth(authn.Anonymous),
-			crane.WithAuthFromKeychain(authn.DefaultKeychain))
+			crane.WithAuthFromKeychain(keychain))
 		if err != nil {
 			return nil, err
 		}
