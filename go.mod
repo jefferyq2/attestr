@@ -5,6 +5,8 @@ go 1.22.1
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.18
+	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20231024185945-8841054dbdb8
+	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589
 	github.com/containerd/containerd v1.7.18
 	github.com/distribution/reference v0.6.0
 	github.com/go-openapi/runtime v0.28.0
@@ -26,11 +28,6 @@ require (
 	github.com/theupdateframework/go-tuf/v2 v2.0.0-20240504210453-5a634eb214ae // for https://github.com/theupdateframework/go-tuf/pull/632
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.4.0
-)
-
-require (
-	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20231024185945-8841054dbdb8
-	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589
 )
 
 require (
