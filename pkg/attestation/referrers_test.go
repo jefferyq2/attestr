@@ -69,6 +69,7 @@ func TestAttestationReferenceTypes(t *testing.T) {
 		indexName := fmt.Sprintf("%s/repo:root", u.Host)
 		require.NoError(t, err)
 		err = mirror.PushIndexToRegistry(signedIndex, indexName)
+		require.NoError(t, err)
 
 		for _, platform := range platforms {
 			// can eval policy in the normal way
