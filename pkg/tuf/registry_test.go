@@ -9,16 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
-	acr "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/docker/attest/internal/embed"
 	"github.com/docker/attest/internal/util"
-	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -371,22 +368,14 @@ func LoadRegistryTestData(t *testing.T, registry *url.URL, path string) {
 	TARGETS_REPO := "tuf-targets"
 	DELEGATED_ROLE := "test-role"
 
-	// Create a multi-keychain that will use the default Docker, Google, ECR or ACR keychain
-	keychain := authn.NewMultiKeychain(
-		authn.DefaultKeychain,
-		google.Keychain,
-		authn.NewKeychainFromHelper(ecr.NewECRHelper()),
-		authn.NewKeychainFromHelper(acr.NewACRCredentialsHelper()),
-	)
-
 	// push top-level metadata -> metadata:latest
-	err := LoadMetadata(filepath.Join(path, "metadata"), registry.Host, METADATA_REPO, METADATA_TAG, keychain)
+	err := LoadMetadata(filepath.Join(path, "metadata"), registry.Host, METADATA_REPO, METADATA_TAG)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// push delegated metadata -> metadata:<DELEGATED_ROLE>
-	err = LoadMetadata(filepath.Join(path, "metadata", DELEGATED_ROLE), registry.Host, METADATA_REPO, DELEGATED_ROLE, keychain)
+	err = LoadMetadata(filepath.Join(path, "metadata", DELEGATED_ROLE), registry.Host, METADATA_REPO, DELEGATED_ROLE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,13 +407,13 @@ func LoadRegistryTestData(t *testing.T, registry *url.URL, path string) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = remote.Write(ref, img, remote.WithAuthFromKeychain(keychain))
+			err = remote.Write(ref, img, oci.MultiKeychainOption())
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else if len(mf.Manifests) > 1 {
 			// delegated target
-			err = remote.WriteIndex(ref, tIdx, remote.WithAuthFromKeychain(keychain))
+			err = remote.WriteIndex(ref, tIdx, oci.MultiKeychainOption())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -435,7 +424,7 @@ func LoadRegistryTestData(t *testing.T, registry *url.URL, path string) {
 }
 
 // LoadMetadata loads TUF metadata from a local path and pushes to a registry
-func LoadMetadata(path, host, repo, tag string, keychain authn.Keychain) error {
+func LoadMetadata(path, host, repo, tag string) error {
 	mIdx, err := layout.ImageIndexFromPath(path)
 	if err != nil {
 		return err
@@ -452,5 +441,5 @@ func LoadMetadata(path, host, repo, tag string, keychain authn.Keychain) error {
 	if err != nil {
 		return err
 	}
-	return remote.Write(ref, img, remote.WithAuthFromKeychain(keychain))
+	return remote.Write(ref, img, oci.MultiKeychainOption())
 }

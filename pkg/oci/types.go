@@ -4,12 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
-	acr "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -53,15 +49,8 @@ func SubjectIndexFromRemote(image string) (*SubjectIndex, error) {
 	if err != nil {
 		log.Fatalf("Failed to parse image name: %v", err)
 	}
-	// Create a multi-keychain that will use the default Docker, Google, ECR or ACR keychain
-	keychain := authn.NewMultiKeychain(
-		authn.DefaultKeychain,
-		google.Keychain,
-		authn.NewKeychainFromHelper(ecr.NewECRHelper()),
-		authn.NewKeychainFromHelper(acr.NewACRCredentialsHelper()),
-	)
 	// Pull the image from the registry
-	idx, err := remote.Index(ref, remote.WithAuthFromKeychain(keychain))
+	idx, err := remote.Index(ref, MultiKeychainOption())
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull image %s: %w", image, err)
 	}
