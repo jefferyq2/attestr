@@ -2,7 +2,6 @@ package mirror
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/docker/attest/internal/embed"
@@ -29,7 +28,7 @@ func NewTufMirror(root []byte, tufPath, metadataURL, targetsURL string, versionC
 func PushImageToRegistry(image v1.Image, imageName string) error {
 	ref, err := name.ParseReference(imageName)
 	if err != nil {
-		log.Fatalf("Failed to parse image name: %v", err)
+		return fmt.Errorf("Failed to parse image name '%s': %w", imageName, err)
 	}
 
 	// Push the image to the registry
@@ -40,8 +39,9 @@ func PushIndexToRegistry(image v1.ImageIndex, imageName string) error {
 	// Parse the index name
 	ref, err := name.ParseReference(imageName)
 	if err != nil {
-		log.Fatalf("Failed to parse image name: %v", err)
+		return fmt.Errorf("Failed to parse image name: %w", err)
 	}
+
 	// Push the index to the registry
 	return remote.WriteIndex(ref, image, oci.MultiKeychainOption())
 }
