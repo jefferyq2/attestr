@@ -1,17 +1,17 @@
 package config
 
 type PolicyMappings struct {
-	Version  string          `json:"version"`
-	Kind     string          `json:"kind"`
-	Policies []PolicyMapping `json:"policies"`
-	Mirrors  []PolicyMirror  `json:"mirrors"`
+	Version  string           `json:"version"`
+	Kind     string           `json:"kind"`
+	Policies []*PolicyMapping `json:"policies"`
+	Mirrors  []*PolicyMirror  `json:"mirrors"`
 }
 
-type AttestationSource string
+type AttestationStyle string
 
 const (
-	AttestationSourceAttached  AttestationSource = "attached"
-	AttestationSourceReferrers AttestationSource = "referrers"
+	AttestationStyleAttached  AttestationStyle = "attached"
+	AttestationStyleReferrers AttestationStyle = "referrers"
 )
 
 type PolicyMapping struct {
@@ -23,8 +23,8 @@ type PolicyMapping struct {
 }
 
 type ReferrersConfig struct {
-	Style AttestationSource `json:"style"`
-	Repo  string            `json:"repo"`
+	Style AttestationStyle `json:"style"`
+	Repo  string           `json:"repo"`
 }
 
 type PolicyMappingFile struct {
