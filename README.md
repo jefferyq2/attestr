@@ -1,6 +1,8 @@
 # attest
 library to create, verify, and evaluate policy for attestations on container images
 
+[![codecov](https://codecov.io/gh/docker/attest/graph/badge.svg?token=cGT0f1ACKg)](https://codecov.io/gh/docker/attest)
+
 # usage
 ## signing and verifying attestations
 See [example_sign_test.go](./pkg/attest/example_sign_test.go)
