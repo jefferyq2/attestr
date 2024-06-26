@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -124,7 +125,7 @@ func (d *RegistryFetcher) getManifest(ref string) ([]byte, error) {
 			crane.WithUserAgent(d.httpUserAgent),
 			crane.WithTransport(transportWithTimeout(d.timeout)),
 			crane.WithAuth(authn.Anonymous),
-			crane.WithAuthFromKeychain(authn.DefaultKeychain))
+			crane.WithAuthFromKeychain(oci.MultiKeychainAll()))
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +145,7 @@ func (d *RegistryFetcher) pullFileLayer(ref string, maxLength int64) ([]byte, er
 			crane.WithUserAgent(d.httpUserAgent),
 			crane.WithTransport(transportWithTimeout(d.timeout)),
 			crane.WithAuth(authn.Anonymous),
-			crane.WithAuthFromKeychain(authn.DefaultKeychain))
+			crane.WithAuthFromKeychain(oci.MultiKeychainAll()))
 		if err != nil {
 			return nil, err
 		}

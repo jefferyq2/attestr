@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/attest/internal/embed"
 	"github.com/docker/attest/internal/util"
-	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -407,13 +407,13 @@ func LoadRegistryTestData(t *testing.T, registry *url.URL, path string) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = remote.Write(ref, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+			err = remote.Write(ref, img, oci.MultiKeychainOption())
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else if len(mf.Manifests) > 1 {
 			// delegated target
-			err = remote.WriteIndex(ref, tIdx, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+			err = remote.WriteIndex(ref, tIdx, oci.MultiKeychainOption())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -441,5 +441,5 @@ func LoadMetadata(path, host, repo, tag string) error {
 	if err != nil {
 		return err
 	}
-	return remote.Write(ref, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Write(ref, img, oci.MultiKeychainOption())
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
@@ -71,13 +70,9 @@ func SubjectIndexFromRemote(image string) (*SubjectIndex, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse image reference %s: %w", image, err)
 	}
-	// Get the authenticator from the default Docker keychain
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve auth for image %s: %w", image, err)
-	}
+
 	// Pull the image from the registry
-	idx, err := remote.Index(ref, remote.WithAuth(auth))
+	idx, err := remote.Index(ref, MultiKeychainOption())
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull image %s: %w", image, err)
 	}

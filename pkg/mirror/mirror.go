@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/docker/attest/internal/embed"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/tuf"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -26,18 +26,13 @@ func NewTufMirror(root []byte, tufPath, metadataURL, targetsURL string, versionC
 }
 
 func PushImageToRegistry(image v1.Image, imageName string) error {
-	// Parse the image name
 	ref, err := name.ParseReference(imageName)
 	if err != nil {
 		return fmt.Errorf("Failed to parse image name '%s': %w", imageName, err)
 	}
-	// Get the authenticator from the default Docker keychain
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
-	if err != nil {
-		return fmt.Errorf("Failed to get authenticator: %w", err)
-	}
+
 	// Push the image to the registry
-	return remote.Write(ref, image, remote.WithAuth(auth))
+	return remote.Write(ref, image, oci.MultiKeychainOption())
 }
 
 func PushIndexToRegistry(image v1.ImageIndex, imageName string) error {
@@ -46,18 +41,14 @@ func PushIndexToRegistry(image v1.ImageIndex, imageName string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to parse image name: %w", err)
 	}
-	// Get the authenticator from the default Docker keychain
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
-	if err != nil {
-		return fmt.Errorf("Failed to get authenticator: %w", err)
-	}
+
 	// Push the index to the registry
-	return remote.WriteIndex(ref, image, remote.WithAuth(auth))
+	return remote.WriteIndex(ref, image, oci.MultiKeychainOption())
 }
 
 func SaveImageAsOCILayout(image v1.Image, path string) error {
 	// Save the image to the local filesystem
-	err := os.MkdirAll(path, os.FileMode(0777))
+	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
@@ -71,7 +62,7 @@ func SaveImageAsOCILayout(image v1.Image, path string) error {
 
 func SaveIndexAsOCILayout(image v1.ImageIndex, path string) error {
 	// Save the index to the local filesystem
-	err := os.MkdirAll(path, os.FileMode(0777))
+	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
