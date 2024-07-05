@@ -29,9 +29,12 @@ func TestRegistry(t *testing.T) {
 		Replace:     true,
 		SkipSubject: true,
 	}
-	attIdx, err := oci.SubjectIndexFromPath(oci.UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(oci.UnsignedTestImage)
 	require.NoError(t, err)
-	signedIndex, err := attest.Sign(ctx, attIdx.Index, signer, opts)
+	signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
+	require.NoError(t, err)
+	signedIndex := attIdx.Index
+	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
 	require.NoError(t, err)
 
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)

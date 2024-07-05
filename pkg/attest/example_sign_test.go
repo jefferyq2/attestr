@@ -32,22 +32,30 @@ func ExampleSign_remote() {
 
 	// load image index with unsigned attestation-manifests
 	ref := "docker/image-signer-verifier:latest"
-	att, err := oci.SubjectIndexFromRemote(ref)
+	attIdx, err := oci.IndexFromRemote(ref)
 	if err != nil {
 		panic(err)
 	}
 	// example for local image index
 	// path := "/myimage"
-	// att, err := oci.AttestationIndexFromLocal(path)
+	// attIdx, err = oci.IndexFromPath(path)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	// sign attestations
-	signedImageIndex, err := attest.Sign(context.Background(), att.Index, signer, opts)
+	// sign all attestations in an image index
+	signedManifests, err := attest.SignStatements(context.Background(), attIdx.Index, signer, opts)
+	if err != nil {
+		panic(err)
+	}
+	signedIndex := attIdx.Index
+	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
 	if err != nil {
 		panic(err)
 	}
 
 	// push image index with signed attestation-manifests
-	err = mirror.PushIndexToRegistry(signedImageIndex, ref)
+	err = mirror.PushIndexToRegistry(signedIndex, ref)
 	if err != nil {
 		panic(err)
 	}
@@ -55,10 +63,10 @@ func ExampleSign_remote() {
 	path := "/myimage"
 	idx := v1.ImageIndex(empty.Index)
 	idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
-		Add: signedImageIndex,
+		Add: signedIndex,
 		Descriptor: v1.Descriptor{
 			Annotations: map[string]string{
-				oci.OciReferenceTarget: att.Name,
+				oci.OciReferenceTarget: attIdx.Name,
 			},
 		},
 	})

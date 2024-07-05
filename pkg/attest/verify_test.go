@@ -80,10 +80,13 @@ func TestVSA(t *testing.T) {
 	opts := &attestation.SigningOptions{
 		Replace: true,
 	}
-	attIdx, err := oci.SubjectIndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
 	assert.NoError(t, err)
-	signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
-	assert.NoError(t, err)
+	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
+	require.NoError(t, err)
+	signedIndex := attIdx.Index
+	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	require.NoError(t, err)
 
 	// output signed attestations
 	idx := v1.ImageIndex(empty.Index)
@@ -136,10 +139,13 @@ func TestVerificationFailure(t *testing.T) {
 	opts := &attestation.SigningOptions{
 		Replace: true,
 	}
-	attIdx, err := oci.SubjectIndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
 	assert.NoError(t, err)
-	signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
-	assert.NoError(t, err)
+	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
+	require.NoError(t, err)
+	signedIndex := attIdx.Index
+	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	require.NoError(t, err)
 
 	// output signed attestations
 	idx := v1.ImageIndex(empty.Index)
@@ -201,7 +207,7 @@ func TestSignVerifyNoTL(t *testing.T) {
 		{name: "no tl", signTL: false, policyDir: PassPolicyDir, success: false},
 	}
 
-	attIdx, err := oci.SubjectIndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
 	assert.NoError(t, err)
 
 	for _, tc := range testCases {
@@ -211,9 +217,11 @@ func TestSignVerifyNoTL(t *testing.T) {
 				SkipTL:  tc.signTL,
 			}
 
-			signedIndex, err := Sign(ctx, attIdx.Index, signer, opts)
-			assert.NoError(t, err)
-
+			signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
+			require.NoError(t, err)
+			signedIndex := attIdx.Index
+			signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+			require.NoError(t, err)
 			// output signed attestations
 			idx := v1.ImageIndex(empty.Index)
 			idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
