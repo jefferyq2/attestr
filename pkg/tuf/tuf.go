@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/attest/internal/embed"
 	"github.com/docker/attest/internal/util"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 	"github.com/theupdateframework/go-tuf/v2/metadata/config"
@@ -226,4 +227,9 @@ func ensureTrailingSlash(url string) string {
 		return url
 	}
 	return url + "/"
+}
+
+// GetEmbeddedTufRootBytes returns the embedded TUF root based on the given root name
+func GetEmbeddedTufRootBytes(root string) ([]byte, error) {
+	return embed.GetRootBytes(root)
 }
