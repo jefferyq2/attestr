@@ -133,3 +133,24 @@ func TestDownloadTarget(t *testing.T) {
 		assert.NoError(t, err)
 	}
 }
+
+func TestGetEmbeddedTufRootBytes(t *testing.T) {
+	dev, err := GetEmbeddedTufRootBytes("dev")
+	assert.NoError(t, err)
+
+	staging, err := GetEmbeddedTufRootBytes("staging")
+	assert.NoError(t, err)
+	assert.NotEqual(t, dev, staging)
+
+	prod, err := GetEmbeddedTufRootBytes("prod")
+	assert.NoError(t, err)
+	assert.NotEqual(t, dev, prod)
+	assert.NotEqual(t, staging, prod)
+
+	def, err := GetEmbeddedTufRootBytes("")
+	assert.NoError(t, err)
+	assert.Equal(t, def, prod)
+
+	_, err = GetEmbeddedTufRootBytes("invalid")
+	assert.Error(t, err)
+}
