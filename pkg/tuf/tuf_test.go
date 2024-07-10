@@ -147,8 +147,9 @@ func TestGetEmbeddedTufRootBytes(t *testing.T) {
 	assert.NotEqual(t, dev, prod)
 	assert.NotEqual(t, staging, prod)
 
-	_, err = GetEmbeddedTufRootBytes("")
+	default, err = GetEmbeddedTufRootBytes("")
 	assert.NoError(t, err)
+	assert.Equal(t, default, prod)
 
 	_, err = GetEmbeddedTufRootBytes("invalid")
 	assert.Error(t, err)
