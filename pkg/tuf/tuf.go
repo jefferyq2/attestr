@@ -229,7 +229,7 @@ func ensureTrailingSlash(url string) string {
 	return url + "/"
 }
 
-// GetEmbeddedTufRootBytes returns the embedded TUF root based on the given root name
-func GetEmbeddedTufRootBytes(root string) ([]byte, error) {
-	return embed.GetRootBytes(root)
+// GetEmbeddedTufRoot returns the embedded TUF root based on the given root name
+func GetEmbeddedTufRoot(root string) (*embed.EmbeddedRoot, error) {
+	return embed.GetRootFromName(root)
 }

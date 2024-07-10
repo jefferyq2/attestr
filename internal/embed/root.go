@@ -6,26 +6,39 @@ import (
 )
 
 //go:embed embedded-roots/1.root-dev.json
-var DevRoot []byte
+var devRoot []byte
 
 //go:embed embedded-roots/1.root-staging.json
-var StagingRoot []byte
+var stagingRoot []byte
 
 //go:embed embedded-roots/1.root.json
-var ProdRoot []byte
+var prodRoot []byte
 
-var DefaultRoot = ProdRoot
+var defaultRoot = prodRoot
 
-func GetRootBytes(root string) ([]byte, error) {
+type RootName string
+type EmbeddedRoot struct {
+	Data []byte
+	Name RootName
+}
+
+var (
+	RootDev     = EmbeddedRoot{Data: devRoot, Name: "dev"}
+	RootStaging = EmbeddedRoot{Data: stagingRoot, Name: "staging"}
+	RootProd    = EmbeddedRoot{Data: prodRoot, Name: "prod"}
+	RootDefault = EmbeddedRoot{Data: defaultRoot, Name: ""}
+)
+
+func GetRootFromName(root string) (*EmbeddedRoot, error) {
 	switch root {
-	case "dev":
-		return DevRoot, nil
-	case "staging":
-		return StagingRoot, nil
-	case "prod":
-		return ProdRoot, nil
-	case "":
-		return DefaultRoot, nil
+	case string(RootDev.Name):
+		return &RootDev, nil
+	case string(RootStaging.Name):
+		return &RootStaging, nil
+	case string(RootProd.Name):
+		return &RootProd, nil
+	case string(RootDefault.Name):
+		return &RootDefault, nil
 	default:
 		return nil, fmt.Errorf("invalid tuf root: %s", root)
 	}
