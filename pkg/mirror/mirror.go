@@ -16,7 +16,7 @@ import (
 
 func NewTufMirror(root []byte, tufPath, metadataURL, targetsURL string, versionChecker tuf.VersionChecker) (*TufMirror, error) {
 	if root == nil {
-		root = embed.DefaultRoot
+		root = embed.RootDefault.Data
 	}
 	tufClient, err := tuf.NewTufClient(root, tufPath, metadataURL, targetsURL, versionChecker)
 	if err != nil {

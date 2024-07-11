@@ -52,7 +52,7 @@ func TestRegistryFetcher(t *testing.T) {
 	delegatedDir := CreateTempDir(t, dir, delegatedRole)
 	delegatedTargetFile := fmt.Sprintf("%s/%s", delegatedRole, targetFile)
 
-	cfg, err := config.New(metadataRepo, embed.DevRoot)
+	cfg, err := config.New(metadataRepo, embed.RootDev.Data)
 	assert.NoError(t, err)
 
 	cfg.Fetcher = NewRegistryFetcher(metadataRepo, metadataImgTag, targetsRepo)
