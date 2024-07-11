@@ -27,6 +27,13 @@ const (
 	OciSource  TufSource = "oci"
 )
 
+var (
+	DockerTufRootProd    = embed.RootProd
+	DockerTufRootStaging = embed.RootStaging
+	DockerTufRootDev     = embed.RootDev
+	DockerTufRootDefault = embed.RootDefault
+)
+
 type TUFClient interface {
 	DownloadTarget(target, filePath string) (actualFilePath string, data []byte, err error)
 }

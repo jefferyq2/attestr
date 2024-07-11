@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	DefaultMetadataURL   = "https://docker.github.io/tuf-staging/metadata"
-	DefaultTargetsURL    = "https://docker.github.io/tuf-staging/targets"
+	DefaultMetadataURL   = "https://docker.github.io/tuf/metadata"
+	DefaultTargetsURL    = "https://docker.github.io/tuf/targets"
 	tufMetadataMediaType = "application/vnd.tuf.metadata+json"
 	tufTargetMediaType   = "application/vnd.tuf.target"
 	tufFileAnnotation    = "tuf.io/filename"
