@@ -1,10 +1,25 @@
 package config
 
+import "regexp"
+
+type policyMappingsFile struct {
+	Version  string            `yaml:"version"`
+	Kind     string            `yaml:"kind"`
+	Policies []*PolicyMapping  `yaml:"policies"`
+	Rules    []*policyRuleFile `yaml:"rules"`
+}
+
+type policyRuleFile struct {
+	Pattern     string `yaml:"pattern"`
+	PolicyId    string `yaml:"policy-id"`
+	Replacement string `yaml:"rewrite"`
+}
+
 type PolicyMappings struct {
-	Version  string           `json:"version"`
-	Kind     string           `json:"kind"`
-	Policies []*PolicyMapping `json:"policies"`
-	Mirrors  []*PolicyMirror  `json:"mirrors"`
+	Version  string
+	Kind     string
+	Policies map[string]*PolicyMapping
+	Rules    []*PolicyRule
 }
 
 type AttestationStyle string
@@ -15,34 +30,23 @@ const (
 )
 
 type PolicyMapping struct {
-	Id           string              `json:"id"`
-	Description  string              `json:"description"`
-	Origin       *PolicyOrigin       `json:"origin"`
-	Files        []PolicyMappingFile `json:"files"`
-	Attestations *ReferrersConfig    `json:"attestations"`
+	Id           string              `yaml:"id"`
+	Description  string              `yaml:"description"`
+	Files        []PolicyMappingFile `yaml:"files"`
+	Attestations *AttestationConfig  `yaml:"attestations"`
 }
 
-type ReferrersConfig struct {
-	Style AttestationStyle `json:"style"`
-	Repo  string           `json:"repo"`
+type AttestationConfig struct {
+	Style AttestationStyle `yaml:"style"`
+	Repo  string           `yaml:"repo"`
 }
 
 type PolicyMappingFile struct {
-	Path string `json:"path"`
+	Path string `yaml:"path"`
 }
 
-type PolicyMirror struct {
-	PolicyId string     `yaml:"policy-id"`
-	Mirror   MirrorSpec `json:"mirror"`
-}
-
-type MirrorSpec struct {
-	Domains []string `json:"domains"`
-	Prefix  string   `json:"prefix"`
-}
-
-type PolicyOrigin struct {
-	Name   string `json:"name"`
-	Prefix string `json:"prefix"`
-	Domain string `json:"domain"`
+type PolicyRule struct {
+	Pattern     *regexp.Regexp
+	PolicyId    string
+	Replacement string
 }

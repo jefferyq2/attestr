@@ -1,4 +1,3 @@
-# map repos to policies
 version: v1
 kind: policy-mapping
 policies:

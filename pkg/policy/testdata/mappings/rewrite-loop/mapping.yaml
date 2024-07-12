@@ -1,4 +1,3 @@
-# map repos to policies
 version: v1
 kind: policy-mapping
 policies:
@@ -9,3 +8,7 @@ policies:
 rules:
   - pattern: "^docker[.]io/library/(.*)$"
     policy-id: docker-official-images
+  - pattern: "^yin/(.*)$"
+    rewrite: "yang/$1"
+  - pattern: "^yang/(.*)$"
+    rewrite: "yin/$1"

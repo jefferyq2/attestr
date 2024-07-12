@@ -6,5 +6,7 @@ policies:
     files:
       - path: policy.rego
 rules:
-  - pattern: ".*"
+  - pattern: "^docker[.]io/library/test-image$"
     policy-id: test-images
+  - pattern: "^mirror[.]org/library/(.*)$"
+    rewrite: docker.io/library/$1

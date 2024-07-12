@@ -3,8 +3,10 @@ package attest
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
@@ -36,12 +38,12 @@ func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.PolicyOptions)
 	}
 	// this is overriding the mapping with a referrers config. Useful for testing if nothing else
 	if opts.ReferrersRepo != "" {
-		pctx.Mapping.Attestations = &config.ReferrersConfig{
+		pctx.Mapping.Attestations = &config.AttestationConfig{
 			Repo:  opts.ReferrersRepo,
 			Style: config.AttestationStyleReferrers,
 		}
 	} else if opts.AttestationStyle == config.AttestationStyleAttached {
-		pctx.Mapping.Attestations = &config.ReferrersConfig{
+		pctx.Mapping.Attestations = &config.AttestationConfig{
 			Repo:  opts.ReferrersRepo,
 			Style: config.AttestationStyleAttached,
 		}
@@ -122,6 +124,19 @@ func VerifyAttestations(ctx context.Context, resolver oci.AttestationResolver, p
 	if err != nil {
 		return nil, err
 	}
+
+	if pctx.ResolvedName != "" {
+		// this means the name we have is not the one we want to use for policy evaluation
+		// so we need to replace it with the one we resolved during policy resolution.
+		// this can happen if the name is an alias for another image, e.g. if it is a mirror
+		ref, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse image name: %w", err)
+		}
+		oldName := ref.Name()
+		name = strings.Replace(name, oldName, pctx.ResolvedName, 1)
+	}
+
 	purl, canonical, err := oci.RefToPURL(name, platform)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert ref to purl: %w", err)
