@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/docker/attest/pkg/attestation"
 	att "github.com/docker/attest/pkg/attestation"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -13,13 +14,13 @@ import (
 type ReferrersResolver struct {
 	digest        string
 	referrersRepo string
-	manifests     []*AttestationManifest
-	*RegistryImageDetailsResolver
+	manifests     []*attestation.AttestationManifest
+	ImageDetailsResolver
 }
 
-func NewReferrersAttestationResolver(src *RegistryImageDetailsResolver, options ...func(*ReferrersResolver) error) (*ReferrersResolver, error) {
+func NewReferrersAttestationResolver(src ImageDetailsResolver, options ...func(*ReferrersResolver) error) (*ReferrersResolver, error) {
 	res := &ReferrersResolver{
-		RegistryImageDetailsResolver: src,
+		ImageDetailsResolver: src,
 	}
 	for _, opt := range options {
 		err := opt(res)
@@ -39,11 +40,19 @@ func WithReferrersRepo(repo string) func(*ReferrersResolver) error {
 
 func (r *ReferrersResolver) resolveAttestations(ctx context.Context) error {
 	if r.manifests == nil {
-		subjectRef, err := name.ParseReference(r.Identifier)
+		imageName, err := r.ImageName(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get image name: %w", err)
+		}
+		subjectRef, err := name.ParseReference(imageName)
 		if err != nil {
 			return fmt.Errorf("failed to parse reference: %w", err)
 		}
-		subjectDigest, err := r.ImageDigest(ctx)
+		desc, err := r.ImageDescriptor(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get descriptor: %w", err)
+		}
+		subjectDigest := desc.Digest.String()
 		if err != nil {
 			return fmt.Errorf("failed to get digest: %w", err)
 		}
@@ -56,6 +65,7 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context) error {
 		} else {
 			referrersSubjectRef = subjectRef.Context().Digest(subjectDigest)
 		}
+		// TODO - search for in-toto artifact type
 		referrersIndex, err := remote.Referrers(referrersSubjectRef)
 		if err != nil {
 			return fmt.Errorf("failed to get referrers: %w", err)
@@ -67,31 +77,22 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context) error {
 		if len(referrersIndexManifest.Manifests) == 0 {
 			return errors.New("no referrers found")
 		}
-		aManifests := make([]*AttestationManifest, 0)
+		aManifests := make([]*attestation.AttestationManifest, 0)
 		for _, m := range referrersIndexManifest.Manifests {
-
 			remoteRef := referrersSubjectRef.Context().Digest(m.Digest.String())
 			attestationImage, err := remote.Image(remoteRef)
 			if err != nil {
 				return fmt.Errorf("failed to get referred image: %w", err)
 			}
-			manifest, err := attestationImage.Manifest()
+			layers, err := attestation.GetAttestationsFromImage(attestationImage)
 			if err != nil {
-				return fmt.Errorf("failed to get manifest: %w", err)
+				return fmt.Errorf("failed to get attestations from image: %w", err)
 			}
-			if manifest.Annotations[att.DockerReferenceType] != att.AttestationManifestType {
-				continue
-			}
-			if manifest.Annotations[att.DockerReferenceDigest] != subjectDigest {
-				continue
-			}
-			attest := &AttestationManifest{
-				Name:       r.Identifier,
-				Image:      attestationImage,
-				Manifest:   manifest,
-				Descriptor: &m,
-				Digest:     subjectDigest,
-				Platform:   r.Platform,
+			attest := &attestation.AttestationManifest{
+				SubjectName:        imageName,
+				OriginalLayers:     layers,
+				OriginalDescriptor: &m,
+				SubjectDescriptor:  desc,
 			}
 			aManifests = append(aManifests, attest)
 		}

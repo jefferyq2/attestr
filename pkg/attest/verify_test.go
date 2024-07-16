@@ -36,7 +36,7 @@ func TestVerifyAttestations(t *testing.T) {
 	var env = new(attestation.Envelope)
 	err = json.Unmarshal(ex, env)
 	assert.NoError(t, err)
-	resolver := &oci.MockResolver{
+	resolver := &test.MockResolver{
 		Envs: []*attestation.Envelope{env},
 	}
 
@@ -77,15 +77,13 @@ func TestVSA(t *testing.T) {
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
-	opts := &attestation.SigningOptions{
-		Replace: true,
-	}
+	opts := &attestation.SigningOptions{}
 	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
 	assert.NoError(t, err)
 	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)
 	signedIndex := attIdx.Index
-	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests)
 	require.NoError(t, err)
 
 	// output signed attestations
@@ -136,15 +134,13 @@ func TestVerificationFailure(t *testing.T) {
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
-	opts := &attestation.SigningOptions{
-		Replace: true,
-	}
+	opts := &attestation.SigningOptions{}
 	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
 	assert.NoError(t, err)
 	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)
 	signedIndex := attIdx.Index
-	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests, attestation.WithReplacedLayers(true))
 	require.NoError(t, err)
 
 	// output signed attestations
@@ -215,14 +211,13 @@ func TestSignVerify(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := &attestation.SigningOptions{
-				Replace: true,
-				SkipTL:  tc.signTL,
+				SkipTL: tc.signTL,
 			}
 
 			signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 			require.NoError(t, err)
 			signedIndex := attIdx.Index
-			signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+			signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests, attestation.WithReplacedLayers(true))
 			require.NoError(t, err)
 
 			imageName := tc.imageName

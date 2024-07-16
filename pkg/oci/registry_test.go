@@ -25,16 +25,13 @@ func TestRegistry(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	opts := &attestation.SigningOptions{
-		Replace:     true,
-		SkipSubject: true,
-	}
+	opts := &attestation.SigningOptions{}
 	attIdx, err := oci.IndexFromPath(oci.UnsignedTestImage)
 	require.NoError(t, err)
 	signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)
 	signedIndex := attIdx.Index
-	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests)
 	require.NoError(t, err)
 
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
@@ -47,7 +44,8 @@ func TestRegistry(t *testing.T) {
 
 	resolver, err := policy.CreateImageDetailsResolver(spec)
 	require.NoError(t, err)
-	digest, err := resolver.ImageDigest(ctx)
+	desc, err := resolver.ImageDescriptor(ctx)
 	require.NoError(t, err)
+	digest := desc.Digest.String()
 	assert.True(t, strings.Contains(digest, "sha256:"))
 }

@@ -2,13 +2,18 @@ package attest
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"testing"
 
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
+	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
@@ -53,15 +58,13 @@ func TestSignVerifyOCILayout(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			outputLayout := test.CreateTempDir(t, "", TestTempDir)
-			opts := &attestation.SigningOptions{
-				Replace: tc.replace,
-			}
+			opts := &attestation.SigningOptions{}
 			attIdx, err := oci.IndexFromPath(tc.TestImage)
 			require.NoError(t, err)
 			signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 			require.NoError(t, err)
 			signedIndex := attIdx.Index
-			signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+			signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests, attestation.WithReplacedLayers(tc.replace))
 			require.NoError(t, err)
 			// output signed attestations
 			idx := v1.ImageIndex(empty.Index)
@@ -102,6 +105,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 }
 
 func TestAddSignedLayerAnnotations(t *testing.T) {
+	ctx, signer := test.Setup(t)
 	testCases := []struct {
 		name    string
 		replace bool
@@ -115,27 +119,30 @@ func TestAddSignedLayerAnnotations(t *testing.T) {
 			data := []byte("signed")
 			testLayer := static.NewLayer(data, types.MediaType(intoto.PayloadType))
 			mediaType := types.OCIManifestSchema1
-			opts := &attestation.SigningOptions{
-				Replace: tc.replace,
-			}
+			opts := &attestation.SigningOptions{}
 			originalLayer := &attestation.AttestationLayer{
-				Layer:       testLayer,
-				Statement:   &intoto.Statement{},
+				Layer: testLayer,
+				Statement: &intoto.Statement{
+					StatementHeader: intoto.StatementHeader{
+						PredicateType: attestation.VSAPredicateType,
+					},
+				},
 				Annotations: map[string]string{"test": "test"},
 			}
 
 			manifest := &attestation.AttestationManifest{
-				MediaType: mediaType,
-				Attestation: &attestation.AttestationImage{
-					Image: empty.Image,
-					Layers: []*attestation.AttestationLayer{
-						originalLayer,
-					},
+				OriginalDescriptor: &v1.Descriptor{
+					MediaType: mediaType,
+				},
+				OriginalLayers: []*attestation.AttestationLayer{
+					originalLayer,
 				},
 				SubjectDescriptor: &v1.Descriptor{},
 			}
-			err := manifest.AddOrReplaceLayer(originalLayer, opts)
-			newImg := manifest.Attestation.Image
+			err := manifest.AddAttestation(ctx, signer, originalLayer.Statement, opts)
+			require.NoError(t, err)
+
+			newImg, err := manifest.BuildAttestationImage(attestation.WithReplacedLayers(tc.replace))
 			require.NoError(t, err)
 			mf, _ := newImg.RawManifest()
 			type Annotations struct {
@@ -149,6 +156,90 @@ func TestAddSignedLayerAnnotations(t *testing.T) {
 			require.NoError(t, err)
 			_, ok := l.Layers[0].Annotations["test"]
 			assert.Truef(t, ok, "missing annotations")
+		})
+	}
+}
+
+func TestSimpleStatementSigning(t *testing.T) {
+	ctx, signer := test.Setup(t)
+	empty := types.MediaType("application/vnd.oci.empty.v1+json")
+	testCases := []struct {
+		name    string
+		replace bool
+	}{
+		{"replaced", true},
+		{"not replaced", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := &attestation.SigningOptions{}
+			statement := &intoto.Statement{
+				StatementHeader: intoto.StatementHeader{
+					PredicateType: attestation.VSAPredicateType,
+				},
+			}
+			statement2 := &intoto.Statement{
+				StatementHeader: intoto.StatementHeader{
+					PredicateType: attestation.VSAPredicateType,
+				},
+			}
+			digest, err := v1.NewHash("sha256:da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620")
+			require.NoError(t, err)
+			subject := &v1.Descriptor{
+				MediaType: "application/vnd.oci.image.manifest.v1+json",
+				Digest:    digest,
+			}
+			manifest, err := NewAttestationManifest(subject)
+			require.NoError(t, err)
+			err = manifest.AddAttestation(ctx, signer, statement, opts)
+			require.NoError(t, err)
+
+			err = manifest.AddAttestation(ctx, signer, statement2, opts)
+			require.NoError(t, err)
+
+			// fake that the manfifest was loaded from a real image
+			manifest.OriginalLayers = manifest.SignedLayers
+			envelopes, err := oci.ExtractEnvelopes(manifest, attestation.VSAPredicateType)
+			require.NoError(t, err)
+			assert.Len(t, envelopes, 2)
+
+			newImg, err := manifest.BuildAttestationImage(attestation.WithReplacedLayers(tc.replace))
+			require.NoError(t, err)
+			layers, err := newImg.Layers()
+			require.NoError(t, err)
+			if tc.replace {
+				assert.Len(t, layers, 2)
+			} else {
+				assert.Len(t, layers, 4)
+			}
+
+			newImgs, err := manifest.BuildReferringArtifacts()
+			require.NoError(t, err)
+			assert.Len(t, newImgs, 2)
+			for _, img := range newImgs {
+				mf, err := img.Manifest()
+				require.NoError(t, err)
+				assert.Equal(t, "application/vnd.in-toto+json", mf.ArtifactType)
+				assert.Equal(t, subject.MediaType, mf.MediaType)
+				assert.Equal(t, empty, mf.Config.MediaType)
+				assert.Equal(t, int64(2), mf.Config.Size)
+				assert.Equal(t, "{}", string(mf.Config.Data))
+				layers, err := img.Layers()
+				require.NoError(t, err)
+				assert.Len(t, layers, 1)
+			}
+			server := httptest.NewServer(registry.New(registry.WithReferrersSupport(true)))
+			defer server.Close()
+
+			u, err := url.Parse(server.URL)
+			require.NoError(t, err)
+
+			indexName := fmt.Sprintf("%s/repo:root", u.Host)
+			output, err := oci.ParseImageSpecs(indexName)
+			require.NoError(t, err)
+			err = mirror.SaveReferrers(manifest, output)
+			require.NoError(t, err)
 		})
 	}
 }

@@ -22,7 +22,7 @@ k2s4SO3XbQ2GG2alm289SUUpmBAuVxvT8muYQ8HC/QzixzyTACTXsBDjQg==
 
 func TestGCPKMS_Signer(t *testing.T) {
 	// create a new signer
-	ctx := context.Background()
+	ctx := context.TODO()
 	ref := "projects/attest-kms-test/locations/us-west1/keyRings/attest-kms-test/cryptoKeys/test-signing-key/cryptoKeyVersions/1"
 	signer, err := GetGCPSigner(ctx, ref)
 	require.NoError(t, err)

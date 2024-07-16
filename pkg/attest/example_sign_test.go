@@ -27,7 +27,7 @@ func ExampleSign_remote() {
 
 	// configure signing options
 	opts := &attestation.SigningOptions{
-		Replace: true, // replace unsigned intoto statements with signed intoto attestations, otherwise leave in place
+		SkipTL: true, // skip trust logging to a transparency log
 	}
 
 	// load image index with unsigned attestation-manifests
@@ -49,7 +49,7 @@ func ExampleSign_remote() {
 		panic(err)
 	}
 	signedIndex := attIdx.Index
-	signedIndex, err = attestation.AddImagesToIndex(signedIndex, signedManifests)
+	signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests)
 	if err != nil {
 		panic(err)
 	}

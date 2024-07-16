@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -80,14 +79,6 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 	}
 
 	return ctx, signer
-}
-
-func GetMockSigner(ctx context.Context) (dsse.SignerVerifier, error) {
-	priv, err := os.ReadFile(filepath.Join("..", "..", "test", "testdata", "test-signing-key.pem"))
-	if err != nil {
-		return nil, err
-	}
-	return signerverifier.LoadKeyPair(priv)
 }
 
 type AnnotatedStatement struct {

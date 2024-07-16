@@ -15,7 +15,7 @@ import (
 
 // implementation of AttestationResolver that closes over attestations from an oci layout
 type OCILayoutResolver struct {
-	*AttestationManifest
+	*attestation.AttestationManifest
 	*ImageSpec
 }
 
@@ -30,7 +30,7 @@ func NewOCILayoutAttestationResolver(src *ImageSpec) (*OCILayoutResolver, error)
 	return r, nil
 }
 
-func (r *OCILayoutResolver) fetchAttestationManifest() (*AttestationManifest, error) {
+func (r *OCILayoutResolver) fetchAttestationManifest() (*attestation.AttestationManifest, error) {
 	if r.AttestationManifest == nil {
 		m, err := attestationManifestFromOCILayout(r.Identifier, r.ImageSpec.Platform)
 		if err != nil {
@@ -43,19 +43,13 @@ func (r *OCILayoutResolver) fetchAttestationManifest() (*AttestationManifest, er
 }
 
 func (r *OCILayoutResolver) Attestations(ctx context.Context, predicateType string) ([]*att.Envelope, error) {
-	attestationImage := r.AttestationManifest.Image
-	layers, err := attestationImage.Layers()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract layers from attestation image: %w", err)
-	}
 	var envs []*att.Envelope
-	manifest := r.AttestationManifest.Manifest
-	for i, l := range manifest.Layers {
-		if l.Annotations[attestation.InTotoPredicateType] != predicateType {
+	for _, attestationLayer := range r.AttestationManifest.OriginalLayers {
+		if attestationLayer.Annotations[attestation.InTotoPredicateType] != predicateType {
 			continue
 		}
-		layer := layers[i]
-		mt, err := layer.MediaType()
+
+		mt, err := attestationLayer.Layer.MediaType()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get layer media type: %w", err)
 		}
@@ -65,7 +59,7 @@ func (r *OCILayoutResolver) Attestations(ctx context.Context, predicateType stri
 		}
 		var env = new(att.Envelope)
 		// parse layer blob as json
-		r, err := layer.Uncompressed()
+		r, err := attestationLayer.Layer.Uncompressed()
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to get layer contents: %w", err)
@@ -81,18 +75,18 @@ func (r *OCILayoutResolver) Attestations(ctx context.Context, predicateType stri
 }
 
 func (r *OCILayoutResolver) ImageName(ctx context.Context) (string, error) {
-	return r.Name, nil
+	return r.SubjectName, nil
 }
 
-func (r *OCILayoutResolver) ImageDigest(ctx context.Context) (string, error) {
-	return r.Digest, nil
+func (r *OCILayoutResolver) ImageDescriptor(ctx context.Context) (*v1.Descriptor, error) {
+	return r.SubjectDescriptor, nil
 }
 
 func (r *OCILayoutResolver) ImagePlatform(ctx context.Context) (*v1.Platform, error) {
 	return r.ImageSpec.Platform, nil
 }
 
-func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*AttestationManifest, error) {
+func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*attestation.AttestationManifest, error) {
 	idx, err := layout.ImageIndexFromPath(path)
 	if err != nil {
 		return nil, err
@@ -115,10 +109,11 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*Atte
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract IndexManifest from ImageIndex: %w", err)
 	}
-	var imageDigest string
+	var subjectDescriptor *v1.Descriptor
 	for _, mf := range mfs2.Manifests {
 		if mf.Platform.Equals(*platform) {
-			imageDigest = mf.Digest.String()
+			subjectDescriptor = &mf
+			break
 		}
 	}
 	for _, mf := range mfs2.Manifests {
@@ -126,7 +121,7 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*Atte
 			continue
 		}
 
-		if mf.Annotations[att.DockerReferenceDigest] != imageDigest {
+		if mf.Annotations[att.DockerReferenceDigest] != subjectDescriptor.Digest.String() {
 			continue
 		}
 
@@ -134,17 +129,15 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*Atte
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract attestation image with digest %s: %w", mf.Digest.String(), err)
 		}
-		manifest, err := attestationImage.Manifest()
+		layers, err := attestation.GetAttestationsFromImage(attestationImage)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get manifest: %w", err)
+			return nil, fmt.Errorf("failed to get attestations from image: %w", err)
 		}
-		attest := &AttestationManifest{
-			Name:       name,
-			Image:      attestationImage,
-			Manifest:   manifest,
-			Descriptor: &mf,
-			Digest:     imageDigest,
-			Platform:   platform,
+		attest := &attestation.AttestationManifest{
+			OriginalLayers:     layers,
+			OriginalDescriptor: &mf,
+			SubjectName:        name,
+			SubjectDescriptor:  subjectDescriptor,
 		}
 		return attest, nil
 	}
