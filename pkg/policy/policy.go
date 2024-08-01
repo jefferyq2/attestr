@@ -226,12 +226,18 @@ func CreateAttestationResolver(resolver oci.ImageDetailsResolver, mapping *confi
 		} else {
 			if mapping.Attestations != nil && mapping.Attestations.Repo != "" {
 				return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
-			} else {
-				return oci.NewReferrersAttestationResolver(resolver)
 			}
+			return oci.NewReferrersAttestationResolver(resolver)
 		}
 	case *oci.OCILayoutResolver:
-		return resolver, nil
+		if mapping.Attestations != nil && mapping.Attestations.Style == config.AttestationStyleAttached {
+			return resolver, nil
+		} else {
+			if mapping.Attestations != nil && mapping.Attestations.Repo != "" {
+				return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+			}
+			return oci.NewReferrersAttestationResolver(resolver)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported image details resolver type: %T", resolver)
 	}
