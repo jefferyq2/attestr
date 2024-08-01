@@ -30,13 +30,13 @@ const (
 	resultBinding = "result"
 )
 
-func NewRegoEvaluator(debug bool) PolicyEvaluator {
+func NewRegoEvaluator(debug bool) Evaluator {
 	return &regoEvaluator{
 		debug: debug,
 	}
 }
 
-func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *PolicyInput) (*Result, error) {
+func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *Input) (*Result, error) {
 	var regoOpts []func(*rego.Rego)
 
 	// Create a new in-memory store
@@ -113,7 +113,7 @@ func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationR
 }
 
 func jsonGenerator[T any]() func(t *ast.Term, ec *rego.EvalContext) (any, error) {
-	return func(t *ast.Term, ec *rego.EvalContext) (any, error) {
+	return func(t *ast.Term, _ *rego.EvalContext) (any, error) {
 		// TODO: this is horrible - we're converting the AST to JSON and then back to AST, then using ast.As to convert it to a struct
 		// We can't use ast.As directly because it fails if the AST contains a set
 		json, err := ast.JSON(t.Value)
@@ -164,9 +164,9 @@ func handleErrors1(f func(rCtx rego.BuiltinContext, a *ast.Term) (*ast.Term, err
 	}
 }
 
-func handleErrors2(f func(rCtx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error)) rego.Builtin2 {
+func handleErrors2(f func(rCtx *rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error)) rego.Builtin2 {
 	return func(rCtx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
-		return wrapFunctionResult(f(rCtx, a, b))
+		return wrapFunctionResult(f(&rCtx, a, b))
 	}
 }
 
@@ -181,7 +181,7 @@ func RegoFunctions(resolver oci.AttestationResolver) []*tester.Builtin {
 					Memoize:          true,
 					Nondeterministic: verifyDecl.Nondeterministic,
 				},
-				handleErrors2(verifyIntotoEnvelope)),
+				handleErrors2(verifyInTotoEnvelope)),
 		},
 		{
 			Decl: attestDecl,
@@ -192,12 +192,12 @@ func RegoFunctions(resolver oci.AttestationResolver) []*tester.Builtin {
 					Memoize:          true,
 					Nondeterministic: attestDecl.Nondeterministic,
 				},
-				handleErrors1(fetchIntotoAttestations(resolver))),
+				handleErrors1(fetchInTotoAttestations(resolver))),
 		},
 	}
 }
 
-func fetchIntotoAttestations(resolver oci.AttestationResolver) rego.Builtin1 {
+func fetchInTotoAttestations(resolver oci.AttestationResolver) rego.Builtin1 {
 	return func(rCtx rego.BuiltinContext, predicateTypeTerm *ast.Term) (*ast.Term, error) {
 		predicateTypeStr, ok := predicateTypeTerm.Value.(ast.String)
 		if !ok {
@@ -227,7 +227,7 @@ func fetchIntotoAttestations(resolver oci.AttestationResolver) rego.Builtin1 {
 	}
 }
 
-func verifyIntotoEnvelope(rCtx rego.BuiltinContext, envTerm, optsTerm *ast.Term) (*ast.Term, error) {
+func verifyInTotoEnvelope(rCtx *rego.BuiltinContext, envTerm, optsTerm *ast.Term) (*ast.Term, error) {
 	env := new(att.Envelope)
 	opts := new(att.VerifyOptions)
 	err := ast.As(envTerm.Value, env)

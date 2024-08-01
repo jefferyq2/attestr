@@ -47,13 +47,13 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 		expectSuccess bool
 		isCanonical   bool
 		resolver      oci.AttestationResolver
-		policy        *policy.PolicyOptions
-		policyId      string
+		policy        *policy.Options
+		policyID      string
 		errorStr      string
 	}{
 		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
-		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver, policyId: "docker-official-images"},
-		{repo: "testdata/mock-tuf-allow", expectSuccess: false, isCanonical: false, resolver: defaultResolver, policyId: "non-existent-policy-id", errorStr: errorStr},
+		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver, policyID: "docker-official-images"},
+		{repo: "testdata/mock-tuf-allow", expectSuccess: false, isCanonical: false, resolver: defaultResolver, policyID: "non-existent-policy-id", errorStr: errorStr},
 		{repo: "testdata/mock-tuf-deny", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-verify-sig", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
@@ -63,18 +63,18 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.repo, func(t *testing.T) {
-			input := &policy.PolicyInput{
+			input := &policy.Input{
 				Digest:      "sha256:test-digest",
-				Purl:        "test-purl",
+				PURL:        "test-purl",
 				IsCanonical: tc.isCanonical,
 			}
 
 			tufClient := tuf.NewMockTufClient(tc.repo, test.CreateTempDir(t, "", "tuf-dest"))
 			if tc.policy == nil {
-				tc.policy = &policy.PolicyOptions{
-					TufClient:       tufClient,
+				tc.policy = &policy.Options{
+					TUFClient:       tufClient,
 					LocalTargetsDir: test.CreateTempDir(t, "", "tuf-targets"),
-					PolicyId:        tc.policyId,
+					PolicyID:        tc.policyID,
 				}
 			}
 			imageName, err := tc.resolver.ImageName(ctx)
@@ -110,8 +110,8 @@ func TestLoadingMappings(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, len(policyMappings.Rules), 3)
 	for _, mirror := range policyMappings.Rules {
-		if mirror.PolicyId != "" {
-			assert.Equal(t, "docker-official-images", mirror.PolicyId)
+		if mirror.PolicyID != "" {
+			assert.Equal(t, "docker-official-images", mirror.PolicyID)
 		}
 	}
 }

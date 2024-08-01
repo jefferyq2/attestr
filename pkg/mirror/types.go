@@ -14,11 +14,11 @@ const (
 	tufFileAnnotation    = "tuf.io/filename"
 )
 
-type TufRole string
+type TUFRole string
 
-var TufRoles = []TufRole{metadata.ROOT, metadata.SNAPSHOT, metadata.TARGETS, metadata.TIMESTAMP}
+var TUFRoles = []TUFRole{metadata.ROOT, metadata.SNAPSHOT, metadata.TARGETS, metadata.TIMESTAMP}
 
-type TufMetadata struct {
+type TUFMetadata struct {
 	Root      map[string][]byte
 	Snapshot  map[string][]byte
 	Targets   map[string][]byte
@@ -31,18 +31,18 @@ type DelegatedTargetMetadata struct {
 	Data    []byte
 }
 
-type MirrorImage struct {
+type Image struct {
 	Image v1.Image
 	Tag   string
 }
 
-type MirrorIndex struct {
+type Index struct {
 	Index v1.ImageIndex
 	Tag   string
 }
 
-type TufMirror struct {
-	TufClient   *tuf.TufClient
+type TUFMirror struct {
+	TUFClient   *tuf.Client
 	tufPath     string
 	metadataURL string
 	targetsURL  string
