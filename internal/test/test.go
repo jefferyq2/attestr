@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	USE_MOCK_TL     = true
-	USE_MOCK_KMS    = true
-	USE_MOCK_POLICY = true
+	UseMockTL     = true
+	UseMockKMS    = true
+	UseMockPolicy = true
 
-	AwsRegion    = "us-east-1"
-	AwsKmsKeyArn = "arn:aws:kms:us-east-1:175142243308:alias/doi-signing" // sandbox
+	AWSRegion    = "us-east-1"
+	AWSKMSKeyARN = "arn:aws:kms:us-east-1:175142243308:alias/doi-signing" // sandbox
 )
 
 func CreateTempDir(t *testing.T, dir, pattern string) string {
@@ -47,7 +47,7 @@ func CreateTempDir(t *testing.T, dir, pattern string) string {
 
 func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 	var tl tlog.TL
-	if USE_MOCK_TL {
+	if UseMockTL {
 		tl = tlog.GetMockTL()
 	} else {
 		tl = &tlog.RekorTL{}
@@ -55,8 +55,8 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 
 	ctx := tlog.WithTL(context.Background(), tl)
 
-	var policyEvaluator policy.PolicyEvaluator
-	if USE_MOCK_POLICY {
+	var policyEvaluator policy.Evaluator
+	if UseMockPolicy {
 		policyEvaluator = policy.GetMockPolicy()
 	} else {
 		policyEvaluator = policy.NewRegoEvaluator(true)
@@ -66,13 +66,13 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 
 	var signer dsse.SignerVerifier
 	var err error
-	if USE_MOCK_KMS {
+	if UseMockKMS {
 		signer, err = GetMockSigner(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		signer, err = signerverifier.GetAWSSigner(ctx, AwsKmsKeyArn, AwsRegion)
+		signer, err = signerverifier.GetAWSSigner(ctx, AWSKMSKeyARN, AWSRegion)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,7 +95,8 @@ func ExtractStatementsFromIndex(idx v1.ImageIndex, mediaType string) ([]*Annotat
 
 	var statements []*AnnotatedStatement
 
-	for _, mf := range mfs2.Manifests {
+	for i := range mfs2.Manifests {
+		mf := &mfs2.Manifests[i]
 		if mf.Annotations[attestation.DockerReferenceType] != "attestation-manifest" {
 			continue
 		}
@@ -124,7 +125,7 @@ func ExtractStatementsFromIndex(idx v1.ImageIndex, mediaType string) ([]*Annotat
 				return nil, fmt.Errorf("failed to get layer contents: %w", err)
 			}
 			defer r.Close()
-			intotoStatement := new(intoto.Statement)
+			inTotoStatement := new(intoto.Statement)
 			var desc *v1.Descriptor
 			if strings.HasSuffix(string(mt), "+dsse") {
 				env := new(attestation.Envelope)
@@ -136,7 +137,7 @@ func ExtractStatementsFromIndex(idx v1.ImageIndex, mediaType string) ([]*Annotat
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode payload: %w", err)
 				}
-				err = json.Unmarshal([]byte(payload), intotoStatement)
+				err = json.Unmarshal([]byte(payload), inTotoStatement)
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode %s statement: %w", mediaType, err)
 				}
@@ -158,7 +159,7 @@ func ExtractStatementsFromIndex(idx v1.ImageIndex, mediaType string) ([]*Annotat
 			}
 			statements = append(statements, &AnnotatedStatement{
 				OCIDescriptor:   desc,
-				InTotoStatement: intotoStatement,
+				InTotoStatement: inTotoStatement,
 				Annotations:     annotations,
 			})
 		}

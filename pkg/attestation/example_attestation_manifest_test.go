@@ -14,7 +14,7 @@ import (
 	"github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
 )
 
-func ExampleAttestationManifest() {
+func ExampleManifest() {
 	// configure signerverifier
 	// local signer (unsafe for production)
 	signer, err := signerverifier.GenKeyPair()
@@ -55,7 +55,7 @@ func ExampleAttestationManifest() {
 				ID: "test-verifier",
 			},
 			TimeVerified:       time.Now().UTC().Format(time.RFC3339),
-			ResourceUri:        "some-uri",
+			ResourceURI:        "some-uri",
 			Policy:             attestation.VSAPolicy{URI: "some-uri"},
 			VerificationResult: "PASSED",
 			VerifiedLevels:     []string{"SLSA_BUILD_LEVEL_1"},

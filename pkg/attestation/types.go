@@ -15,8 +15,8 @@ const (
 	AttestationManifestType       = "attestation-manifest"
 	InTotoPredicateType           = "in-toto.io/predicate-type"
 	DockerReferenceDigest         = "vnd.docker.reference.digest"
-	DockerDsseExtKind             = "application/vnd.docker.attestation-verification.v1+json"
-	RekorTlExtKind                = "Rekor"
+	DockerDSSEExtKind             = "application/vnd.docker.attestation-verification.v1+json"
+	RekorTLExtKind                = "Rekor"
 	OCIDescriptorDSSEMediaType    = ociv1.MediaTypeDescriptor + "+dsse"
 	InTotoReferenceLifecycleStage = "vnd.docker.lifecycle-stage"
 	LifecycleStageExperimental    = "experimental"
@@ -24,58 +24,58 @@ const (
 
 var base64Encoding = base64.StdEncoding.Strict()
 
-type AttestationLayer struct {
+type Layer struct {
 	Statement   *intoto.Statement
 	Layer       v1.Layer
 	Annotations map[string]string
 }
 
-type AttestationManifest struct {
+type Manifest struct {
 	OriginalDescriptor *v1.Descriptor
-	OriginalLayers     []*AttestationLayer
+	OriginalLayers     []*Layer
 
 	// accumulated during signing
-	SignedLayers []*AttestationLayer
+	SignedLayers []*Layer
 	// details of subect image
 	SubjectName       string
 	SubjectDescriptor *v1.Descriptor
 }
 
-type AttestationManifestImageOptions struct {
+type ManifestImageOptions struct {
 	// how to output the image
 	skipSubject   bool
 	replaceLayers bool
 	laxReferrers  bool
 }
 
-// the following types are needed until https://github.com/secure-systems-lab/dsse/pull/61 is merged
+// the following types are needed until https://github.com/secure-systems-lab/dsse/pull/61 is merged.
 type Envelope struct {
-	PayloadType string      `json:"payloadType"`
-	Payload     string      `json:"payload"`
-	Signatures  []Signature `json:"signatures"`
+	PayloadType string       `json:"payloadType"`
+	Payload     string       `json:"payload"`
+	Signatures  []*Signature `json:"signatures"`
 }
 type Signature struct {
-	KeyID     string    `json:"keyid"`
-	Sig       string    `json:"sig"`
-	Extension Extension `json:"extension,omitempty"`
+	KeyID     string     `json:"keyid"`
+	Sig       string     `json:"sig"`
+	Extension *Extension `json:"extension,omitempty"`
 }
 type Extension struct {
-	Kind string              `json:"kind"`
-	Ext  DockerDsseExtension `json:"ext"`
+	Kind string               `json:"kind"`
+	Ext  *DockerDSSEExtension `json:"ext"`
 }
 
-type DockerDsseExtension struct {
-	Tl DockerTlExtension `json:"tl"`
+type DockerDSSEExtension struct {
+	TL *DockerTLExtension `json:"tl"`
 }
 
-type DockerTlExtension struct {
+type DockerTLExtension struct {
 	Kind string `json:"kind"`
 	Data any    `json:"data"`
 }
 
 type VerifyOptions struct {
-	Keys   []KeyMetadata `json:"keys"`
-	SkipTL bool          `json:"skip_tl"`
+	Keys   []*KeyMetadata `json:"keys"`
+	SkipTL bool           `json:"skip_tl"`
 }
 
 type SigningOptions struct {
