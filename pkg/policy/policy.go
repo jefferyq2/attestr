@@ -230,14 +230,28 @@ func CreateAttestationResolver(resolver oci.ImageDetailsResolver, mapping *confi
 			return oci.NewReferrersAttestationResolver(resolver)
 		}
 	case *oci.LayoutResolver:
-		if mapping.Attestations != nil && mapping.Attestations.Style == config.AttestationStyleAttached {
-			return resolver, nil
-		} else {
-			if mapping.Attestations != nil && mapping.Attestations.Repo != "" {
-				return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+		if mapping.Attestations != nil {
+			switch mapping.Attestations.Style {
+			case config.AttestationStyleAttached:
+				return resolver, nil
+			case config.AttestationStyleReferrers:
+				if mapping.Attestations.Repo != "" {
+					referrersSpec, err := oci.ParseImageSpec(mapping.Attestations.Repo)
+					if err != nil {
+						return nil, fmt.Errorf("failed to parse referrers image spec: %w", err)
+					}
+					referrersResolver, err := CreateImageDetailsResolver(referrersSpec)
+					if err != nil {
+						return nil, fmt.Errorf("failed to create referrers resolver: %w", err)
+					}
+					return oci.NewReferrersAttestationResolver(referrersResolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+				}
+				return oci.NewReferrersAttestationResolver(resolver)
+			default:
+				return nil, fmt.Errorf("unsupported attestation style: %s", mapping.Attestations.Style)
 			}
-			return oci.NewReferrersAttestationResolver(resolver)
 		}
+		return resolver, nil
 	default:
 		return nil, fmt.Errorf("unsupported image details resolver type: %T", resolver)
 	}
