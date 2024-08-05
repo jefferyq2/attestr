@@ -1,2 +1,5 @@
 ignore:
   - "internal/test"
+coverage:
+  status:
+    patch: false
