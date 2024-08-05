@@ -100,7 +100,7 @@ func TestVSA(t *testing.T) {
 	policyOpts := &policy.Options{
 		LocalPolicyDir: PassPolicyDir,
 	}
-	src, err := oci.ParseImageSpec("oci://"+outputLayout, oci.WithPlatform(LinuxAMD64))
+	src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 	require.NoError(t, err)
 	results, err := Verify(ctx, src, policyOpts)
 	require.NoError(t, err)
@@ -158,7 +158,7 @@ func TestVerificationFailure(t *testing.T) {
 	policyOpts := &policy.Options{
 		LocalPolicyDir: FailPolicyDir,
 	}
-	src, err := oci.ParseImageSpec("oci://"+outputLayout, oci.WithPlatform(LinuxAMD64))
+	src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 	require.NoError(t, err)
 	results, err := Verify(ctx, src, policyOpts)
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestSignVerify(t *testing.T) {
 			policyOpts := &policy.Options{
 				LocalPolicyDir: tc.policyDir,
 			}
-			src, err := oci.ParseImageSpec("oci://"+outputLayout, oci.WithPlatform(LinuxAMD64))
+			src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 			require.NoError(t, err)
 			results, err := Verify(ctx, src, policyOpts)
 			if tc.expectError {
