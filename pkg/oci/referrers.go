@@ -16,6 +16,14 @@ type ReferrersResolver struct {
 }
 
 func NewReferrersAttestationResolver(src ImageDetailsResolver, options ...func(*ReferrersResolver) error) (*ReferrersResolver, error) {
+	// currently only supports RegistryImageDetailsResolver
+	switch src.(type) {
+	case *RegistryImageDetailsResolver:
+	case *MockRegistryResolver:
+	default:
+		return nil, fmt.Errorf("unsupported referrers image details resolver type: %T", src)
+	}
+
 	res := &ReferrersResolver{
 		ImageDetailsResolver: src,
 	}
