@@ -15,9 +15,6 @@ import (
 	"github.com/docker/attest/pkg/policy"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
@@ -66,21 +63,11 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			signedIndex := attIdx.Index
 			signedIndex, err = attestation.UpdateIndexImages(signedIndex, signedManifests, attestation.WithReplacedLayers(tc.replace))
 			require.NoError(t, err)
-			// output signed attestations
-			idx := v1.ImageIndex(empty.Index)
-			idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
-				Add: signedIndex,
-				Descriptor: v1.Descriptor{
-					Annotations: map[string]string{
-						oci.OCIReferenceTarget: attIdx.Name,
-					},
-				},
-			})
-			_, err = layout.Write(outputLayout, idx)
+			spec, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 			require.NoError(t, err)
-			src, err := oci.ParseImageSpec("oci://" + outputLayout)
+			err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 			require.NoError(t, err)
-			policy, err := Verify(ctx, src, policyOpts)
+			policy, err := Verify(ctx, spec, policyOpts)
 			require.NoError(t, err)
 			assert.Equalf(t, OutcomeSuccess, policy.Outcome, "Policy should have been found")
 
