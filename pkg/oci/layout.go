@@ -115,6 +115,9 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*atte
 			}
 		}
 	}
+	if subjectDescriptor == nil {
+		return nil, fmt.Errorf("platform not found in index")
+	}
 	for i := range mfs2.Manifests {
 		mf := &mfs2.Manifests[i]
 		if mf.Annotations[att.DockerReferenceType] != attestation.AttestationManifestType {

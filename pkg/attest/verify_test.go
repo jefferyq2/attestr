@@ -10,12 +10,10 @@ import (
 
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/config"
+	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,25 +82,17 @@ func TestVSA(t *testing.T) {
 	require.NoError(t, err)
 
 	// output signed attestations
-	idx := v1.ImageIndex(empty.Index)
-	idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
-		Add: signedIndex,
-		Descriptor: v1.Descriptor{
-			Annotations: map[string]string{
-				oci.OCIReferenceTarget: attIdx.Name,
-			},
-		},
-	})
-	_, err = layout.Write(outputLayout, idx)
+	spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
+	require.NoError(t, err)
+	err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 	assert.NoError(t, err)
 
 	// mocked vsa query should pass
 	policyOpts := &policy.Options{
-		LocalPolicyDir: PassPolicyDir,
+		LocalPolicyDir:   PassPolicyDir,
+		AttestationStyle: config.AttestationStyleAttached,
 	}
-	src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
-	require.NoError(t, err)
-	results, err := Verify(ctx, src, policyOpts)
+	results, err := Verify(ctx, spec, policyOpts)
 	require.NoError(t, err)
 	assert.Equal(t, OutcomeSuccess, results.Outcome)
 	assert.Empty(t, results.Violations)
@@ -142,25 +132,17 @@ func TestVerificationFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	// output signed attestations
-	idx := v1.ImageIndex(empty.Index)
-	idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
-		Add: signedIndex,
-		Descriptor: v1.Descriptor{
-			Annotations: map[string]string{
-				oci.OCIReferenceTarget: attIdx.Name,
-			},
-		},
-	})
-	_, err = layout.Write(outputLayout, idx)
+	spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
+	require.NoError(t, err)
+	err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 	assert.NoError(t, err)
 
 	// mocked vsa query should fail
 	policyOpts := &policy.Options{
-		LocalPolicyDir: FailPolicyDir,
+		LocalPolicyDir:   FailPolicyDir,
+		AttestationStyle: config.AttestationStyleAttached,
 	}
-	src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
-	require.NoError(t, err)
-	results, err := Verify(ctx, src, policyOpts)
+	results, err := Verify(ctx, spec, policyOpts)
 	require.NoError(t, err)
 	assert.Equal(t, OutcomeFailure, results.Outcome)
 	assert.Len(t, results.Violations, 1)
@@ -224,24 +206,15 @@ func TestSignVerify(t *testing.T) {
 				imageName = attIdx.Name
 			}
 			// output signed attestations
-			idx := v1.ImageIndex(empty.Index)
-			idx = mutate.AppendManifests(idx, mutate.IndexAddendum{
-				Add: signedIndex,
-				Descriptor: v1.Descriptor{
-					Annotations: map[string]string{
-						oci.OCIReferenceTarget: imageName,
-					},
-				},
-			})
-			_, err = layout.Write(outputLayout, idx)
-			assert.NoError(t, err)
+			spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
+			require.NoError(t, err)
+			err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, imageName)
+			require.NoError(t, err)
 
 			policyOpts := &policy.Options{
 				LocalPolicyDir: tc.policyDir,
 			}
-			src, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
-			require.NoError(t, err)
-			results, err := Verify(ctx, src, policyOpts)
+			results, err := Verify(ctx, spec, policyOpts)
 			if tc.expectError {
 				require.Error(t, err)
 				return

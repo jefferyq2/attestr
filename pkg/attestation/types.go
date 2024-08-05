@@ -36,7 +36,7 @@ type Manifest struct {
 
 	// accumulated during signing
 	SignedLayers []*Layer
-	// details of subect image
+	// details of subject image
 	SubjectName       string
 	SubjectDescriptor *v1.Descriptor
 }
