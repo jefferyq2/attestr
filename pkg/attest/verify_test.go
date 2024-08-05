@@ -34,7 +34,7 @@ func TestVerifyAttestations(t *testing.T) {
 	env := new(attestation.Envelope)
 	err = json.Unmarshal(ex, env)
 	assert.NoError(t, err)
-	resolver := &test.MockResolver{
+	resolver := &oci.MockResolver{
 		Envs: []*attestation.Envelope{env},
 	}
 

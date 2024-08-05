@@ -96,9 +96,9 @@ func TestSavingReferrers(t *testing.T) {
 	err = SaveReferrers(manifest, output)
 	require.NoError(t, err)
 
-	reg := &test.MockRegistryResolver{
+	reg := &oci.MockRegistryResolver{
 		Subject:      subject,
-		MockResolver: &test.MockResolver{},
+		MockResolver: &oci.MockResolver{},
 		ImageNameStr: indexName,
 	}
 	require.NoError(t, err)
