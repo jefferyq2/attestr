@@ -13,7 +13,7 @@ require (
 	github.com/google/go-containerregistry v0.20.1
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/in-toto/in-toto-golang v0.9.0
-	github.com/open-policy-agent/opa v0.67.0
+	github.com/open-policy-agent/opa v0.67.1
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/package-url/packageurl-go v0.1.3
 	github.com/secure-systems-lab/go-securesystemslib v0.8.0
