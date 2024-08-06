@@ -219,19 +219,20 @@ func CreateImageDetailsResolver(imageSource *oci.ImageSpec) (oci.ImageDetailsRes
 }
 
 func CreateAttestationResolver(resolver oci.ImageDetailsResolver, mapping *config.PolicyMapping) (oci.AttestationResolver, error) {
-	switch resolver := resolver.(type) {
-	case *oci.RegistryImageDetailsResolver:
-		if mapping.Attestations != nil && mapping.Attestations.Style == config.AttestationStyleAttached {
-			return oci.NewRegistryAttestationResolver(resolver)
-		} else {
-			if mapping.Attestations != nil && mapping.Attestations.Repo != "" {
-				return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+	if mapping.Attestations != nil {
+		if mapping.Attestations.Style == config.AttestationStyleAttached {
+			switch resolver := resolver.(type) {
+			case *oci.RegistryImageDetailsResolver:
+				return oci.NewRegistryAttestationResolver(resolver)
+			case *oci.LayoutResolver:
+				return resolver, nil
+			default:
+				return nil, fmt.Errorf("unsupported image details resolver type: %T", resolver)
 			}
-			return oci.NewReferrersAttestationResolver(resolver)
 		}
-	case *oci.LayoutResolver:
-		return resolver, nil
-	default:
-		return nil, fmt.Errorf("unsupported image details resolver type: %T", resolver)
+		if mapping.Attestations.Repo != "" {
+			return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+		}
 	}
+	return oci.NewReferrersAttestationResolver(resolver)
 }

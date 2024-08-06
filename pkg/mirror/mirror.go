@@ -129,6 +129,7 @@ func SaveImage(output *oci.ImageSpec, image v1.Image, imageName string) error {
 
 func SaveReferrers(manifest *attestation.Manifest, outputs []*oci.ImageSpec) error {
 	for _, output := range outputs {
+		// OCI layout output for referrers not supported
 		if output.Type == oci.OCI {
 			continue
 		}
@@ -147,10 +148,10 @@ func SaveReferrers(manifest *attestation.Manifest, outputs []*oci.ImageSpec) err
 			return fmt.Errorf("failed to build image: %w", err)
 		}
 		for _, image := range images {
-			err = SaveImage(attOut, image, "")
-		}
-		if err != nil {
-			return fmt.Errorf("failed to push image: %w", err)
+			err := PushImageToRegistry(image, attOut.Identifier)
+			if err != nil {
+				return fmt.Errorf("failed to push image: %w", err)
+			}
 		}
 	}
 	return nil

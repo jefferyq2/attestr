@@ -3,6 +3,7 @@ package oci
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/docker/attest/pkg/attestation"
 	att "github.com/docker/attest/pkg/attestation"
@@ -58,7 +59,7 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 	}
 	var referrersSubjectRef name.Digest
 	if r.referrersRepo != "" {
-		referrersSubjectRef, err = name.NewDigest(fmt.Sprintf("%s@%s", r.referrersRepo, subjectDigest))
+		referrersSubjectRef, err = name.NewDigest(fmt.Sprintf("%s@%s", strings.TrimPrefix(r.referrersRepo, RegistryPrefix), subjectDigest))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create referrers reference: %w", err)
 		}
