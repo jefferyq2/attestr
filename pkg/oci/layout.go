@@ -95,7 +95,6 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*atte
 	}
 
 	idxDescriptor := idxm.Manifests[0]
-	name := idxDescriptor.Annotations["org.opencontainers.image.ref.name"]
 	idxDigest := idxDescriptor.Digest
 
 	mfs, err := idx.ImageIndex(idxDigest)
@@ -109,10 +108,15 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*atte
 	var subjectDescriptor *v1.Descriptor
 	for i := range mfs2.Manifests {
 		manifest := &mfs2.Manifests[i]
-		if manifest.Platform.Equals(*platform) {
-			subjectDescriptor = manifest
-			break
+		if manifest.Platform != nil {
+			if manifest.Platform.Equals(*platform) {
+				subjectDescriptor = manifest
+				break
+			}
 		}
+	}
+	if subjectDescriptor == nil {
+		return nil, fmt.Errorf("platform not found in index")
 	}
 	for i := range mfs2.Manifests {
 		mf := &mfs2.Manifests[i]
@@ -135,7 +139,7 @@ func attestationManifestFromOCILayout(path string, platform *v1.Platform) (*atte
 		attest := &attestation.Manifest{
 			OriginalLayers:     layers,
 			OriginalDescriptor: mf,
-			SubjectName:        name,
+			SubjectName:        idxDescriptor.Annotations["org.opencontainers.image.ref.name"],
 			SubjectDescriptor:  subjectDescriptor,
 		}
 		return attest, nil

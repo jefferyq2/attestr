@@ -36,7 +36,7 @@ func TestSavingIndex(t *testing.T) {
 	err = SaveIndex(output, attIdx.Index, indexName)
 	require.NoError(t, err)
 
-	ociOutput, err := oci.ParseImageSpecs("oci://" + outputLayout)
+	ociOutput, err := oci.ParseImageSpecs(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
 	err = SaveIndex(ociOutput, attIdx.Index, indexName)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestSavingImage(t *testing.T) {
 	err = SaveImage(output, img, indexName)
 	require.NoError(t, err)
 
-	ociOutput, err := oci.ParseImageSpec("oci://" + outputLayout)
+	ociOutput, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
 	err = SaveImage(ociOutput, img, indexName)
 	require.NoError(t, err)
@@ -96,9 +96,9 @@ func TestSavingReferrers(t *testing.T) {
 	err = SaveReferrers(manifest, output)
 	require.NoError(t, err)
 
-	reg := &test.MockRegistryResolver{
+	reg := &oci.MockRegistryResolver{
 		Subject:      subject,
-		MockResolver: &test.MockResolver{},
+		MockResolver: &oci.MockResolver{},
 		ImageNameStr: indexName,
 	}
 	require.NoError(t, err)
