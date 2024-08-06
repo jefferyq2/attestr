@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -43,6 +44,14 @@ func CreateTempDir(t *testing.T, dir, pattern string) string {
 		}
 	})
 	return tempDir
+}
+
+func GetMockSigner(_ context.Context) (dsse.SignerVerifier, error) {
+	priv, err := os.ReadFile(filepath.Join("..", "..", "test", "testdata", "test-signing-key.pem"))
+	if err != nil {
+		return nil, err
+	}
+	return signerverifier.LoadKeyPair(priv)
 }
 
 func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {

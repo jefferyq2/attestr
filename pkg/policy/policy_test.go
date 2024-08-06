@@ -38,7 +38,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 
 	re := policy.NewRegoEvaluator(true)
 
-	defaultResolver := test.MockResolver{
+	defaultResolver := oci.MockResolver{
 		Envs: []*attestation.Envelope{loadAttestation(t, ExampleAttestation)},
 	}
 
@@ -113,5 +113,66 @@ func TestLoadingMappings(t *testing.T) {
 		if mirror.PolicyID != "" {
 			assert.Equal(t, "docker-official-images", mirror.PolicyID)
 		}
+	}
+}
+
+func TestCreateAttestationResolver(t *testing.T) {
+	mockResolver := oci.MockResolver{
+		Envs: []*attestation.Envelope{},
+	}
+	layoutResolver := &oci.LayoutResolver{}
+	registryResolver := &oci.RegistryImageDetailsResolver{}
+
+	nilRepoReferrers := &config.PolicyMapping{
+		Attestations: &config.AttestationConfig{
+			Style: config.AttestationStyleReferrers,
+		},
+	}
+	referrers := &config.PolicyMapping{
+		Attestations: &config.AttestationConfig{
+			Repo:  "localhost:5000/repo",
+			Style: config.AttestationStyleReferrers,
+		},
+	}
+	attached := &config.PolicyMapping{
+		Attestations: &config.AttestationConfig{
+			Style: config.AttestationStyleAttached,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		resolver oci.ImageDetailsResolver
+		mapping  *config.PolicyMapping
+		errorStr string
+	}{
+		{name: "referrers", resolver: layoutResolver, mapping: referrers},
+		{name: "referrers (no mapped repo)", resolver: layoutResolver, mapping: nilRepoReferrers},
+		{name: "referrers (no mapping)", resolver: layoutResolver, mapping: &config.PolicyMapping{Attestations: nil}},
+		{name: "attached (registry)", resolver: registryResolver, mapping: attached},
+		{name: "attached (layout)", resolver: layoutResolver, mapping: attached},
+		{name: "attached (unsupported)", resolver: mockResolver, mapping: attached, errorStr: "unsupported image details resolver type"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolver, err := policy.CreateAttestationResolver(tc.resolver, tc.mapping)
+			if tc.errorStr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.Contains(t, err.Error(), tc.errorStr)
+			}
+			if tc.mapping.Attestations == nil {
+				return
+			}
+			switch resolver.(type) {
+			case *oci.ReferrersResolver:
+				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleReferrers)
+			case *oci.RegistryResolver:
+				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
+			case *oci.LayoutResolver:
+				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
+			}
+		})
 	}
 }

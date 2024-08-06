@@ -95,10 +95,10 @@ func TestWithoutTag(t *testing.T) {
 		{name: "image:tag", expected: "index.docker.io/library/image"},
 		{name: "image", expected: "index.docker.io/library/image"},
 		{name: "image:sha256-digest.att", expected: "index.docker.io/library/image"},
-		{name: "docker://image:tag", expected: "docker://index.docker.io/library/image"},
+		{name: RegistryPrefix + "image:tag", expected: RegistryPrefix + "index.docker.io/library/image"},
 		{name: "image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: "index.docker.io/library/image"},
-		{name: "docker://image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: "docker://index.docker.io/library/image"},
-		{name: "docker://127.0.0.1:36555/repo:latest", expected: "docker://127.0.0.1:36555/repo"},
+		{name: RegistryPrefix + "image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: RegistryPrefix + "index.docker.io/library/image"},
+		{name: RegistryPrefix + "127.0.0.1:36555/repo:latest", expected: RegistryPrefix + "127.0.0.1:36555/repo"},
 	}
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
@@ -116,11 +116,11 @@ func TestReplaceTag(t *testing.T) {
 		{name: "image:tag", expected: "index.docker.io/library/image:sha256-digest.att"},
 		{name: "image", expected: "index.docker.io/library/image:sha256-digest.att"},
 		{name: "image:sha256-digest.att", expected: "index.docker.io/library/image:sha256-digest.att"},
-		{name: "docker://image:tag", expected: "docker://index.docker.io/library/image:sha256-digest.att"},
+		{name: RegistryPrefix + "image:tag", expected: RegistryPrefix + "index.docker.io/library/image:sha256-digest.att"},
 		{name: "image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: "index.docker.io/library/image:sha256-digest.att"},
-		{name: "oci://foobar", expected: "oci://foobar"},
-		{name: "docker://image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: "docker://index.docker.io/library/image:sha256-digest.att"},
-		{name: "docker://127.0.0.1:36555/repo:latest", expected: "docker://127.0.0.1:36555/repo:sha256-digest.att"},
+		{name: LocalPrefix + "foobar", expected: LocalPrefix + "foobar"},
+		{name: RegistryPrefix + "image@sha256:166710df254975d4a6c4c407c315951c22753dcaa829e020a3fd5d18fff70dd2", expected: RegistryPrefix + "index.docker.io/library/image:sha256-digest.att"},
+		{name: RegistryPrefix + "127.0.0.1:36555/repo:latest", expected: RegistryPrefix + "127.0.0.1:36555/repo:sha256-digest.att"},
 	}
 
 	digest := v1.Hash{
