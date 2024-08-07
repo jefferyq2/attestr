@@ -134,21 +134,30 @@ func SaveReferrers(manifest *attestation.Manifest, outputs []*oci.ImageSpec) err
 			continue
 		}
 		// so that we use the same tag each time to reduce number of tags (tags aren't needed for referrers but we must push one)
-		attOut, err := oci.ReplaceTagInSpec(output, manifest.SubjectDescriptor.Digest)
-		if err != nil {
-			return err
-		}
-		// otherwise we end up with the detected platform, though I'm not sure it matters
-		attOut.Platform = &v1.Platform{
-			OS:           "unknown",
-			Architecture: "unknown",
-		}
+		// attOut, err := oci.ReplaceTagInSpec(output, manifest.SubjectDescriptor.Digest)
+		// if err != nil {
+		// 	return err
+		// }
 		images, err := manifest.BuildReferringArtifacts()
 		if err != nil {
 			return fmt.Errorf("failed to build image: %w", err)
 		}
 		for _, image := range images {
-			err := PushImageToRegistry(image, attOut.Identifier)
+			layers, err := image.Layers()
+			if err != nil {
+				return fmt.Errorf("failed to get attestation image layers: %w", err)
+			}
+			digest, err := layers[0].Digest()
+			if err != nil {
+				return fmt.Errorf("failed to get attestation image digest: %w", err)
+			}
+			digest2, _ := image.Digest()
+			fmt.Printf("digest: %s, digest2: %s\n", digest, digest2)
+			attOut, err := oci.ReplaceDigestInSpec(output, digest2)
+			if err != nil {
+				return fmt.Errorf("failed to create attestation image spec: %w", err)
+			}
+			err = PushImageToRegistry(image, attOut.Identifier)
 			if err != nil {
 				return fmt.Errorf("failed to push image: %w", err)
 			}

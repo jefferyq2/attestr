@@ -249,7 +249,7 @@ func (manifest *Manifest) BuildReferringArtifacts() ([]v1.Image, error) {
 	return images, nil
 }
 
-// build and image containing only layers.
+// build an image containing only layers.
 func buildImage(layers []*Layer, manifest *v1.Descriptor, subject *v1.Descriptor, opts *ManifestImageOptions) (v1.Image, error) {
 	newImg := empty.Image
 	var err error
