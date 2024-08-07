@@ -143,17 +143,11 @@ func SaveReferrers(manifest *attestation.Manifest, outputs []*oci.ImageSpec) err
 			return fmt.Errorf("failed to build image: %w", err)
 		}
 		for _, image := range images {
-			layers, err := image.Layers()
-			if err != nil {
-				return fmt.Errorf("failed to get attestation image layers: %w", err)
-			}
-			digest, err := layers[0].Digest()
+			digest, err := image.Digest()
 			if err != nil {
 				return fmt.Errorf("failed to get attestation image digest: %w", err)
 			}
-			digest2, _ := image.Digest()
-			fmt.Printf("digest: %s, digest2: %s\n", digest, digest2)
-			attOut, err := oci.ReplaceDigestInSpec(output, digest2)
+			attOut, err := oci.ReplaceDigestInSpec(output, digest)
 			if err != nil {
 				return fmt.Errorf("failed to create attestation image spec: %w", err)
 			}
