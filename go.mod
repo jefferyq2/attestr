@@ -20,7 +20,7 @@ require (
 	github.com/sigstore/cosign/v2 v2.3.0
 	github.com/sigstore/rekor v1.3.6
 	github.com/sigstore/sigstore/pkg/signature/kms/aws v1.8.7
-	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.7
+	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.8
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go/modules/registry v0.32.0
 	github.com/theupdateframework/go-tuf/v2 v2.0.0
@@ -185,7 +185,7 @@ require (
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
+	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
