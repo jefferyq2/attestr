@@ -172,3 +172,26 @@ func replaceTag(image string, digest v1.Hash) (string, error) {
 	}
 	return fmt.Sprintf("%s:%s-%s.att", notag, digest.Algorithm, digest.Hex), nil
 }
+
+func ReplaceDigestInSpec(src *ImageSpec, digest v1.Hash) (*ImageSpec, error) {
+	newName, err := replaceDigest(src.Identifier, digest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repo name: %w", err)
+	}
+	return &ImageSpec{
+		Identifier: newName,
+		Type:       src.Type,
+		Platform:   src.Platform,
+	}, nil
+}
+
+func replaceDigest(image string, digest v1.Hash) (string, error) {
+	if strings.HasPrefix(image, LocalPrefix) {
+		return image, nil
+	}
+	notag, err := WithoutTag(image)
+	if err != nil {
+		return "", nil
+	}
+	return fmt.Sprintf("%s@%s:%s", notag, digest.Algorithm, digest.Hex), nil
+}

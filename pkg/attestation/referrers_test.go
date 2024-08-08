@@ -8,14 +8,15 @@ import (
 	"testing"
 
 	"github.com/docker/attest/internal/test"
+	"github.com/docker/attest/internal/util"
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,14 +113,14 @@ func TestAttestationReferenceTypes(t *testing.T) {
 
 			// push subject image so that it can be resolved
 			require.NoError(t, err)
-			err = mirror.PushIndexToRegistry(attIdx.Index, indexName)
+			err = oci.PushIndexToRegistry(attIdx.Index, indexName)
 			require.NoError(t, err)
 
 			// upload referrers
 			output, err := oci.ParseImageSpec(outputRepo)
 			require.NoError(t, err)
 			for _, attIdx := range signedManifests {
-				err = mirror.SaveReferrers(attIdx, []*oci.ImageSpec{output})
+				err = oci.SaveReferrers(attIdx, []*oci.ImageSpec{output})
 				require.NoError(t, err)
 			}
 
@@ -216,7 +217,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 		require.NoError(t, err)
 
 		indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
-		err = mirror.PushIndexToRegistry(attIdx.Index, indexName)
+		err = oci.PushIndexToRegistry(attIdx.Index, indexName)
 		require.NoError(t, err)
 
 		signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
@@ -227,7 +228,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 			// push references using subject-digest.att convention
 			image, err := signedManifest.BuildAttestationImage()
 			require.NoError(t, err)
-			err = mirror.PushImageToRegistry(image, fmt.Sprintf("%s/%s:tag-does-not-matter", refServerURL.Host, repoName))
+			err = oci.PushImageToRegistry(image, fmt.Sprintf("%s/%s:tag-does-not-matter", refServerURL.Host, repoName))
 			require.NoError(t, err)
 
 			refServer := tc.refServer
@@ -242,7 +243,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 			require.NoError(t, err)
 
 			indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
-			err = mirror.PushIndexToRegistry(attIdx.Index, indexName)
+			err = oci.PushIndexToRegistry(attIdx.Index, indexName)
 			require.NoError(t, err)
 
 			signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
@@ -254,7 +255,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 				imgs, err := mf.BuildReferringArtifacts()
 				require.NoError(t, err)
 				for _, img := range imgs {
-					err = mirror.PushImageToRegistry(img, fmt.Sprintf("%s/%s:tag-does-not-matter", refServerURL.Host, repoName))
+					err = oci.PushImageToRegistry(img, fmt.Sprintf("%s/%s:tag-does-not-matter", refServerURL.Host, repoName))
 					require.NoError(t, err)
 				}
 			}
@@ -297,7 +298,7 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 	require.NoError(t, err)
 
 	indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
-	err = mirror.PushIndexToRegistry(attIdx.Index, indexName)
+	err = oci.PushIndexToRegistry(attIdx.Index, indexName)
 	require.NoError(t, err)
 
 	signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
@@ -308,7 +309,7 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 		imgs, err := mf.BuildReferringArtifacts()
 		require.NoError(t, err)
 		for _, img := range imgs {
-			err = mirror.PushImageToRegistry(img, fmt.Sprintf("%s/%s:tag-does-not-matter", serverURL.Host, repoName))
+			err = oci.PushImageToRegistry(img, fmt.Sprintf("%s/%s:tag-does-not-matter", serverURL.Host, repoName))
 			require.NoError(t, err)
 			mf, err := img.Manifest()
 			require.NoError(t, err)
@@ -325,4 +326,15 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEmptyConfigImageDigest(t *testing.T) {
+	empty := empty.Image
+	img := attestation.EmptyConfigImage{empty}
+	mf, err := img.RawManifest()
+	require.NoError(t, err)
+	hash := util.SHA256Hex(mf)
+	digest, err := img.Digest()
+	require.NoError(t, err)
+	assert.Equal(t, digest.Hex, hash)
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -36,7 +35,7 @@ func TestRegistry(t *testing.T) {
 
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
 	require.NoError(t, err)
-	err = mirror.PushIndexToRegistry(signedIndex, indexName)
+	err = oci.PushIndexToRegistry(signedIndex, indexName)
 	require.NoError(t, err)
 
 	spec, err := oci.ParseImageSpec(indexName)
