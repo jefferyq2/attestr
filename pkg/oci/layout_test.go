@@ -7,7 +7,6 @@ import (
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -34,7 +33,7 @@ func TestAttestationFromOCILayout(t *testing.T) {
 	require.NoError(t, err)
 	spec, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
-	err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, outputLayout)
+	err = oci.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, outputLayout)
 	require.NoError(t, err)
 
 	testCases := []struct {

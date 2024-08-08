@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -65,7 +64,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			require.NoError(t, err)
 			spec, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 			require.NoError(t, err)
-			err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
+			err = oci.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 			require.NoError(t, err)
 			policy, err := Verify(ctx, spec, policyOpts)
 			require.NoError(t, err)
@@ -226,7 +225,7 @@ func TestSimpleStatementSigning(t *testing.T) {
 			indexName := fmt.Sprintf("%s/repo:root", u.Host)
 			output, err := oci.ParseImageSpecs(indexName)
 			require.NoError(t, err)
-			err = mirror.SaveReferrers(manifest, output)
+			err = oci.SaveReferrers(manifest, output)
 			require.NoError(t, err)
 		})
 	}

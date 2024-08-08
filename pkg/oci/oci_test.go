@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var UnsignedTestImage = filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
+
 func TestRefToPurl(t *testing.T) {
 	arm, err := ParsePlatform("arm64/linux")
 	require.NoError(t, err)
@@ -53,8 +55,6 @@ func TestRefToPurl(t *testing.T) {
 	assert.Equal(t, "pkg:docker/localhost%3A5001/alpine?digest=sha256%3Ac5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b&platform=arm64%2Flinux", purl)
 	assert.True(t, canonical)
 }
-
-var UnsignedTestImage = filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
 
 // Test fix for https://github.com/docker/secure-artifacts-team-issues/issues/202
 func TestImageDigestForPlatform(t *testing.T) {

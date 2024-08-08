@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +24,7 @@ func TestRegistryAuth(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Image, func(t *testing.T) {
-			err := mirror.PushIndexToRegistry(attIdx.Index, tc.Image)
+			err := oci.PushIndexToRegistry(attIdx.Index, tc.Image)
 			require.NoError(t, err)
 			_, err = oci.IndexFromRemote(tc.Image)
 			require.NoError(t, err)
