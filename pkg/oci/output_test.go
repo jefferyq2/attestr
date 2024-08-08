@@ -1,4 +1,4 @@
-package mirror
+package oci_test
 
 import (
 	"fmt"
@@ -33,12 +33,12 @@ func TestSavingIndex(t *testing.T) {
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
 	output, err := oci.ParseImageSpecs(indexName)
 	require.NoError(t, err)
-	err = SaveIndex(output, attIdx.Index, indexName)
+	err = oci.SaveIndex(output, attIdx.Index, indexName)
 	require.NoError(t, err)
 
 	ociOutput, err := oci.ParseImageSpecs(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
-	err = SaveIndex(ociOutput, attIdx.Index, indexName)
+	err = oci.SaveIndex(ociOutput, attIdx.Index, indexName)
 	require.NoError(t, err)
 }
 
@@ -56,12 +56,12 @@ func TestSavingImage(t *testing.T) {
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
 	output, err := oci.ParseImageSpec(indexName)
 	require.NoError(t, err)
-	err = SaveImage(output, img, indexName)
+	err = oci.SaveImage(output, img, indexName)
 	require.NoError(t, err)
 
 	ociOutput, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
-	err = SaveImage(ociOutput, img, indexName)
+	err = oci.SaveImage(ociOutput, img, indexName)
 	require.NoError(t, err)
 }
 
@@ -93,7 +93,7 @@ func TestSavingReferrers(t *testing.T) {
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
 	output, err := oci.ParseImageSpecs(indexName)
 	require.NoError(t, err)
-	err = SaveReferrers(manifest, output)
+	err = oci.SaveReferrers(manifest, output)
 	require.NoError(t, err)
 
 	reg := &oci.MockRegistryResolver{

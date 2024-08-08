@@ -11,7 +11,6 @@ import (
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
@@ -84,7 +83,7 @@ func TestVSA(t *testing.T) {
 	// output signed attestations
 	spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 	require.NoError(t, err)
-	err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
+	err = oci.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 	assert.NoError(t, err)
 
 	// mocked vsa query should pass
@@ -134,7 +133,7 @@ func TestVerificationFailure(t *testing.T) {
 	// output signed attestations
 	spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 	require.NoError(t, err)
-	err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
+	err = oci.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, attIdx.Name)
 	assert.NoError(t, err)
 
 	// mocked vsa query should fail
@@ -208,7 +207,7 @@ func TestSignVerify(t *testing.T) {
 			// output signed attestations
 			spec, err := oci.ParseImageSpec(oci.LocalPrefix+outputLayout, oci.WithPlatform(LinuxAMD64))
 			require.NoError(t, err)
-			err = mirror.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, imageName)
+			err = oci.SaveIndex([]*oci.ImageSpec{spec}, signedIndex, imageName)
 			require.NoError(t, err)
 
 			policyOpts := &policy.Options{

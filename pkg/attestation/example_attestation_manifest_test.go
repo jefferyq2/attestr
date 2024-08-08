@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/signerverifier"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -80,7 +79,7 @@ func ExampleManifest() {
 	}
 
 	// save the manifest to the registry as a referrers artifact
-	err = mirror.SaveReferrers(manifest, output)
+	err = oci.SaveReferrers(manifest, output)
 	if err != nil {
 		panic(err)
 	}

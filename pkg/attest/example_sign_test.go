@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/mirror"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/signerverifier"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -55,7 +54,7 @@ func ExampleSignStatements_remote() {
 	}
 
 	// push image index with signed attestation-manifests
-	err = mirror.PushIndexToRegistry(signedIndex, ref)
+	err = oci.PushIndexToRegistry(signedIndex, ref)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +69,7 @@ func ExampleSignStatements_remote() {
 			},
 		},
 	})
-	err = mirror.SaveIndexAsOCILayout(idx, path)
+	err = oci.SaveIndexAsOCILayout(idx, path)
 	if err != nil {
 		panic(err)
 	}
