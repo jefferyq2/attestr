@@ -28,8 +28,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-// fork of a fork (in case it goes away) with changes to support ArtifactType (https://github.com/google/go-containerregistry/pull/1931)
-replace github.com/google/go-containerregistry => github.com/kipz/go-containerregistry v0.0.0-20240722163910-ebe90246535d
+// fork with changes to support ArtifactType (https://github.com/google/go-containerregistry/pull/1931)
+replace github.com/google/go-containerregistry => github.com/docker/go-containerregistry v0.0.0-20240808132857-c8bfc44af7c8
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
@@ -75,7 +75,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/digitorus/pkcs7 v0.0.0-20230818184609-3a137a874352 // indirect
 	github.com/digitorus/timestamp v0.0.0-20231217203849-220c5c2851b7 // indirect
-	github.com/docker/cli v26.1.3+incompatible // indirect
+	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker v27.1.0+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.1 // indirect
