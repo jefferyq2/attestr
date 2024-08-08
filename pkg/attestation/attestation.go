@@ -1,6 +1,7 @@
 package attestation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -328,4 +329,13 @@ func (i *EmptyConfigImage) RawManifest() ([]byte, error) {
 		return nil, fmt.Errorf("failed to get manifest: %w", err)
 	}
 	return json.Marshal(mf)
+}
+
+func (i *EmptyConfigImage) Digest() (v1.Hash, error) {
+	mb, err := i.RawManifest()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	digest, _, err := v1.SHA256(bytes.NewReader(mb))
+	return digest, err
 }
