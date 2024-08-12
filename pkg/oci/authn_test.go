@@ -1,16 +1,17 @@
 //go:build e2e
 
-package oci
+package oci_test
 
 import (
 	"testing"
 
 	"github.com/docker/attest/internal/test"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRegistryAuth(t *testing.T) {
-	attIdx, err := IndexFromPath(test.UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 	// test cases for ecr, gcr and dockerhub
 	testCases := []struct {
@@ -21,9 +22,9 @@ func TestRegistryAuth(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Image, func(t *testing.T) {
-			err := PushIndexToRegistry(attIdx.Index, tc.Image)
+			err := oci.PushIndexToRegistry(attIdx.Index, tc.Image)
 			require.NoError(t, err)
-			_, err = IndexFromRemote(tc.Image)
+			_, err = oci.IndexFromRemote(tc.Image)
 			require.NoError(t, err)
 		})
 	}
