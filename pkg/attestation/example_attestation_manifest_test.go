@@ -68,7 +68,7 @@ func ExampleManifest() {
 	}
 
 	// sign and add the attestation to the manifest
-	err = manifest.AddAttestation(context.Background(), signer, statement, opts)
+	err = manifest.Add(context.Background(), signer, statement, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +79,11 @@ func ExampleManifest() {
 	}
 
 	// save the manifest to the registry as a referrers artifact
-	err = oci.SaveReferrers(manifest, output)
+	artifacts, err := manifest.BuildReferringArtifacts()
+	if err != nil {
+		panic(err)
+	}
+	err = oci.SaveImagesNoTag(artifacts, output)
 	if err != nil {
 		panic(err)
 	}

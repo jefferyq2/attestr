@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/docker/attest/pkg/attestation"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -113,26 +112,22 @@ func SaveImage(output *ImageSpec, image v1.Image, imageName string) error {
 	return nil
 }
 
-func SaveReferrers(manifest *attestation.Manifest, outputs []*ImageSpec) error {
+func SaveImagesNoTag(images []v1.Image, outputs []*ImageSpec) error {
 	for _, output := range outputs {
-		// OCI layout output for referrers not supported
+		// OCI layout output not supported
 		if output.Type == OCI {
 			continue
-		}
-		images, err := manifest.BuildReferringArtifacts()
-		if err != nil {
-			return fmt.Errorf("failed to build image: %w", err)
 		}
 		for _, image := range images {
 			digest, err := image.Digest()
 			if err != nil {
-				return fmt.Errorf("failed to get attestation image digest: %w", err)
+				return fmt.Errorf("failed to get image digest: %w", err)
 			}
-			attOut, err := ReplaceDigestInSpec(output, digest)
+			spec, err := ReplaceDigestInSpec(output, digest)
 			if err != nil {
-				return fmt.Errorf("failed to create attestation image spec: %w", err)
+				return fmt.Errorf("failed to create image spec: %w", err)
 			}
-			err = PushImageToRegistry(image, attOut.Identifier)
+			err = PushImageToRegistry(image, spec.Identifier)
 			if err != nil {
 				return fmt.Errorf("failed to push image: %w", err)
 			}

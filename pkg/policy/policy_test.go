@@ -38,7 +38,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 
 	re := policy.NewRegoEvaluator(true)
 
-	defaultResolver := oci.MockResolver{
+	defaultResolver := attestation.MockResolver{
 		Envs: []*attestation.Envelope{loadAttestation(t, ExampleAttestation)},
 	}
 
@@ -46,7 +46,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 		repo          string
 		expectSuccess bool
 		isCanonical   bool
-		resolver      oci.AttestationResolver
+		resolver      attestation.Resolver
 		policy        *policy.Options
 		policyID      string
 		errorStr      string
@@ -117,10 +117,10 @@ func TestLoadingMappings(t *testing.T) {
 }
 
 func TestCreateAttestationResolver(t *testing.T) {
-	mockResolver := oci.MockResolver{
+	mockResolver := attestation.MockResolver{
 		Envs: []*attestation.Envelope{},
 	}
-	layoutResolver := &oci.LayoutResolver{}
+	layoutResolver := &attestation.LayoutResolver{}
 	registryResolver := &oci.RegistryImageDetailsResolver{}
 
 	nilRepoReferrers := &config.PolicyMapping{
@@ -166,11 +166,11 @@ func TestCreateAttestationResolver(t *testing.T) {
 				return
 			}
 			switch resolver.(type) {
-			case *oci.ReferrersResolver:
+			case *attestation.ReferrersResolver:
 				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleReferrers)
-			case *oci.RegistryResolver:
+			case *attestation.RegistryResolver:
 				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
-			case *oci.LayoutResolver:
+			case *attestation.LayoutResolver:
 				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
 			}
 		})

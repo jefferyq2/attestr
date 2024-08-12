@@ -1,6 +1,8 @@
 package oci
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -25,12 +27,6 @@ type (
 		Name  string
 	}
 )
-
-type AttestationOptions struct {
-	NoReferrers   bool
-	Attach        bool
-	ReferrersRepo string
-}
 
 type ImageSpecOption func(*ImageSpec) error
 
@@ -179,4 +175,43 @@ func WithoutTag(image string) (string, error) {
 	}
 	repo := ref.Context().Name()
 	return prefix + repo, nil
+}
+
+type EmptyConfigImage struct {
+	v1.Image
+}
+
+func (i *EmptyConfigImage) RawConfigFile() ([]byte, error) {
+	return []byte("{}"), nil
+}
+
+func (i *EmptyConfigImage) Manifest() (*v1.Manifest, error) {
+	mf, err := i.Image.Manifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get manifest: %w", err)
+	}
+	mf.Config = v1.Descriptor{
+		MediaType: "application/vnd.oci.empty.v1+json",
+		Size:      2,
+		Digest:    v1.Hash{Algorithm: "sha256", Hex: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
+		Data:      []byte("{}"),
+	}
+	return mf, nil
+}
+
+func (i *EmptyConfigImage) RawManifest() ([]byte, error) {
+	mf, err := i.Manifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get manifest: %w", err)
+	}
+	return json.Marshal(mf)
+}
+
+func (i *EmptyConfigImage) Digest() (v1.Hash, error) {
+	mb, err := i.RawManifest()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	digest, _, err := v1.SHA256(bytes.NewReader(mb))
+	return digest, err
 }

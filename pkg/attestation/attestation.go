@@ -1,14 +1,17 @@
 package attestation
 
 import (
-	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strings"
 
+	"github.com/docker/attest/pkg/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -18,8 +21,8 @@ import (
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
-// GetAttestationManifestsFromIndex extracts all attestation manifests from an index.
-func GetAttestationManifestsFromIndex(index v1.ImageIndex) ([]*Manifest, error) {
+// ManifestsFromIndex extracts all attestation manifests from an index.
+func ManifestsFromIndex(index v1.ImageIndex) ([]*Manifest, error) {
 	idx, err := index.IndexManifest()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract IndexManifest from ImageIndex: %w", err)
@@ -42,7 +45,7 @@ func GetAttestationManifestsFromIndex(index v1.ImageIndex) ([]*Manifest, error) 
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract attestation image with digest %s: %w", desc.Digest.String(), err)
 			}
-			attestationLayers, err := GetAttestationsFromImage(attestationImage)
+			attestationLayers, err := layersFromImage(attestationImage)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get attestations from image: %w", err)
 			}
@@ -57,8 +60,8 @@ func GetAttestationManifestsFromIndex(index v1.ImageIndex) ([]*Manifest, error) 
 	return attestationManifests, nil
 }
 
-// GetAttestationsFromImage extracts all attestation layers from an image.
-func GetAttestationsFromImage(image v1.Image) ([]*Layer, error) {
+// LayersFromImage extracts all attestation layers from an image.
+func layersFromImage(image v1.Image) ([]*Layer, error) {
 	layers, err := image.Layers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract layers from image: %w", err)
@@ -94,7 +97,7 @@ func GetAttestationsFromImage(image v1.Image) ([]*Layer, error) {
 	return attestationLayers, nil
 }
 
-func (manifest *Manifest) AddAttestation(ctx context.Context, signer dsse.SignerVerifier, statement *intoto.Statement, opts *SigningOptions) error {
+func (manifest *Manifest) Add(ctx context.Context, signer dsse.SignerVerifier, statement *intoto.Statement, opts *SigningOptions) error {
 	layer, err := createSignedImageLayer(ctx, statement, signer, opts)
 	if err != nil {
 		return fmt.Errorf("failed to create signed layer: %w", err)
@@ -105,7 +108,7 @@ func (manifest *Manifest) AddAttestation(ctx context.Context, signer dsse.Signer
 
 func createSignedImageLayer(ctx context.Context, statement *intoto.Statement, signer dsse.SignerVerifier, opts *SigningOptions) (*Layer, error) {
 	// sign the statement
-	env, err := SignInTotoStatement(ctx, statement, signer, opts)
+	env, err := signInTotoStatement(ctx, statement, signer, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign statement: %w", err)
 	}
@@ -128,7 +131,7 @@ func createSignedImageLayer(ctx context.Context, statement *intoto.Statement, si
 	}, nil
 }
 
-func SignInTotoStatement(ctx context.Context, statement *intoto.Statement, signer dsse.SignerVerifier, opts *SigningOptions) (*Envelope, error) {
+func signInTotoStatement(ctx context.Context, statement *intoto.Statement, signer dsse.SignerVerifier, opts *SigningOptions) (*Envelope, error) {
 	payload, err := json.Marshal(statement)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal statement: %w", err)
@@ -140,12 +143,12 @@ func SignInTotoStatement(ctx context.Context, statement *intoto.Statement, signe
 	return env, nil
 }
 
-func UpdateIndexImage(
+func updateImageIndex(
 	idx v1.ImageIndex,
 	manifest *Manifest,
 	options ...func(*ManifestImageOptions) error,
 ) (v1.ImageIndex, error) {
-	image, err := manifest.BuildAttestationImage(options...)
+	image, err := manifest.BuildImage(options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build image: %w", err)
 	}
@@ -170,7 +173,7 @@ func UpdateIndexImage(
 func UpdateIndexImages(idx v1.ImageIndex, manifest []*Manifest, options ...func(*ManifestImageOptions) error) (v1.ImageIndex, error) {
 	var err error
 	for _, m := range manifest {
-		idx, err = UpdateIndexImage(idx, m, options...)
+		idx, err = updateImageIndex(idx, m, options...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add image to index: %w", err)
 		}
@@ -204,7 +207,7 @@ func WithReplacedLayers(replaceLayers bool) func(*ManifestImageOptions) error {
 }
 
 // build an image with signed attestations, optionally replacing existing layers with signed layers.
-func (manifest *Manifest) BuildAttestationImage(options ...func(*ManifestImageOptions) error) (v1.Image, error) {
+func (manifest *Manifest) BuildImage(options ...func(*ManifestImageOptions) error) (v1.Image, error) {
 	opts, err := newOptions(options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create options: %w", err)
@@ -229,7 +232,7 @@ func (manifest *Manifest) BuildAttestationImage(options ...func(*ManifestImageOp
 	}
 	// so that we attach all attestations to a single attestations image - as per current buildkit
 	opts.laxReferrers = true
-	newImg, err := buildImage(resultLayers, manifest.OriginalDescriptor, manifest.SubjectDescriptor, opts)
+	newImg, err := buildImageFromLayers(resultLayers, manifest.OriginalDescriptor, manifest.SubjectDescriptor, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build image: %w", err)
 	}
@@ -241,7 +244,7 @@ func (manifest *Manifest) BuildReferringArtifacts() ([]v1.Image, error) {
 	var images []v1.Image
 	for _, layer := range manifest.SignedLayers {
 		opts := &ManifestImageOptions{}
-		newImg, err := buildImage([]*Layer{layer}, manifest.OriginalDescriptor, manifest.SubjectDescriptor, opts)
+		newImg, err := buildImageFromLayers([]*Layer{layer}, manifest.OriginalDescriptor, manifest.SubjectDescriptor, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build image: %w", err)
 		}
@@ -250,8 +253,8 @@ func (manifest *Manifest) BuildReferringArtifacts() ([]v1.Image, error) {
 	return images, nil
 }
 
-// build an image containing only layers.
-func buildImage(layers []*Layer, manifest *v1.Descriptor, subject *v1.Descriptor, opts *ManifestImageOptions) (v1.Image, error) {
+// build an image containing only layers provided.
+func buildImageFromLayers(layers []*Layer, manifest *v1.Descriptor, subject *v1.Descriptor, opts *ManifestImageOptions) (v1.Image, error) {
 	newImg := empty.Image
 	var err error
 	if len(layers) == 0 {
@@ -296,46 +299,135 @@ func buildImage(layers []*Layer, manifest *v1.Descriptor, subject *v1.Descriptor
 	}
 	if !opts.laxReferrers {
 		// as per https://github.com/opencontainers/image-spec/blob/main/manifest.md#guidance-for-an-empty-descriptor
-		newImg = &EmptyConfigImage{newImg}
+		newImg = &oci.EmptyConfigImage{Image: newImg}
 	}
 	return newImg, nil
 }
 
-type EmptyConfigImage struct {
-	v1.Image
-}
-
-func (i *EmptyConfigImage) RawConfigFile() ([]byte, error) {
-	return []byte("{}"), nil
-}
-
-func (i *EmptyConfigImage) Manifest() (*v1.Manifest, error) {
-	mf, err := i.Image.Manifest()
+func ExtractEnvelopes(manifest *Manifest, predicateType string) ([]*Envelope, error) {
+	var envs []*Envelope
+	dsseMediaType, err := DSSEMediaType(predicateType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %w", err)
+		return nil, fmt.Errorf("failed to get DSSE media type for predicate '%s': %w", predicateType, err)
 	}
-	mf.Config = v1.Descriptor{
-		MediaType: "application/vnd.oci.empty.v1+json",
-		Size:      2,
-		Digest:    v1.Hash{Algorithm: "sha256", Hex: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
-		Data:      []byte("{}"),
+	for _, attestationLayer := range manifest.OriginalLayers {
+		mt, err := attestationLayer.Layer.MediaType()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get layer media type: %w", err)
+		}
+		if string(mt) == dsseMediaType {
+			reader, err := attestationLayer.Layer.Uncompressed()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get layer contents: %w", err)
+			}
+			defer reader.Close()
+			env := new(Envelope)
+			err = json.NewDecoder(reader).Decode(&env)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode envelope: %w", err)
+			}
+			envs = append(envs, env)
+		}
 	}
-	return mf, nil
+
+	return envs, nil
 }
 
-func (i *EmptyConfigImage) RawManifest() ([]byte, error) {
-	mf, err := i.Manifest()
+func ExtractStatementsFromIndex(idx v1.ImageIndex, mediaType string) ([]*AnnotatedStatement, error) {
+	mfs2, err := idx.IndexManifest()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %w", err)
+		return nil, fmt.Errorf("failed to extract IndexManifest from ImageIndex: %w", err)
 	}
-	return json.Marshal(mf)
+
+	var statements []*AnnotatedStatement
+
+	for i := range mfs2.Manifests {
+		mf := &mfs2.Manifests[i]
+		if mf.Annotations[DockerReferenceType] != "attestation-manifest" {
+			continue
+		}
+
+		attestationImage, err := idx.Image(mf.Digest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract attestation image with digest %s: %w", mf.Digest.String(), err)
+		}
+		layers, err := attestationImage.Layers()
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract layers from attestation image: %w", err)
+		}
+
+		for _, layer := range layers {
+			// parse layer blob as json
+			mt, err := layer.MediaType()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get layer media type: %w", err)
+			}
+
+			if string(mt) != mediaType {
+				continue
+			}
+			r, err := layer.Uncompressed()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get layer contents: %w", err)
+			}
+			defer r.Close()
+			inTotoStatement := new(intoto.Statement)
+			var desc *v1.Descriptor
+			if strings.HasSuffix(string(mt), "+dsse") {
+				env := new(Envelope)
+				err = json.NewDecoder(r).Decode(env)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode env: %w", err)
+				}
+				payload, err := base64.StdEncoding.Strict().DecodeString(env.Payload)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode payload: %w", err)
+				}
+				err = json.Unmarshal([]byte(payload), inTotoStatement)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode %s statement: %w", mediaType, err)
+				}
+			} else {
+				desc := new(v1.Descriptor)
+				err = json.NewDecoder(r).Decode(desc)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode statement: %w", err)
+				}
+			}
+
+			layerDesc, err := partial.Descriptor(layer)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get descriptor for layer: %w", err)
+			}
+			annotations := make(map[string]string)
+			for k, v := range layerDesc.Annotations {
+				annotations[k] = v
+			}
+			statements = append(statements, &AnnotatedStatement{
+				OCIDescriptor:   desc,
+				InTotoStatement: inTotoStatement,
+				Annotations:     annotations,
+			})
+		}
+	}
+	return statements, nil
 }
 
-func (i *EmptyConfigImage) Digest() (v1.Hash, error) {
-	mb, err := i.RawManifest()
+func ExtractAnnotatedStatements(path string, mediaType string) ([]*AnnotatedStatement, error) {
+	idx, err := layout.ImageIndexFromPath(path)
 	if err != nil {
-		return v1.Hash{}, err
+		return nil, fmt.Errorf("failed to load image index: %w", err)
 	}
-	digest, _, err := v1.SHA256(bytes.NewReader(mb))
-	return digest, err
+
+	idxm, err := idx.IndexManifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get digest: %w", err)
+	}
+	idxDigest := idxm.Manifests[0].Digest
+
+	mfs, err := idx.ImageIndex(idxDigest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract ImageIndex for digest %s: %w", idxDigest.String(), err)
+	}
+	return ExtractStatementsFromIndex(mfs, mediaType)
 }

@@ -1,4 +1,4 @@
-package oci_test
+package attestation_test
 
 import (
 	"strings"
@@ -24,7 +24,7 @@ func TestAttestationFromOCILayout(t *testing.T) {
 	}
 
 	opts := &attestation.SigningOptions{}
-	attIdx, err := oci.IndexFromPath(oci.UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 	signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)

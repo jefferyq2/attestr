@@ -1,17 +1,17 @@
-package oci
+package attestation
 
 import (
 	"context"
 
-	"github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type MockResolver struct {
-	Envs []*attestation.Envelope
+	Envs []*Envelope
 }
 
-func (r MockResolver) Attestations(_ context.Context, _ string) ([]*attestation.Envelope, error) {
+func (r MockResolver) Attestations(_ context.Context, _ string) ([]*Envelope, error) {
 	return r.Envs, nil
 }
 
@@ -32,7 +32,7 @@ func (r MockResolver) ImageDescriptor(_ context.Context) (*v1.Descriptor, error)
 }
 
 func (r MockResolver) ImagePlatform(_ context.Context) (*v1.Platform, error) {
-	return ParsePlatform("linux/amd64")
+	return oci.ParsePlatform("linux/amd64")
 }
 
 type MockRegistryResolver struct {

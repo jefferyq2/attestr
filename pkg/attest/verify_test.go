@@ -31,7 +31,7 @@ func TestVerifyAttestations(t *testing.T) {
 	env := new(attestation.Envelope)
 	err = json.Unmarshal(ex, env)
 	assert.NoError(t, err)
-	resolver := &oci.MockResolver{
+	resolver := &attestation.MockResolver{
 		Envs: []*attestation.Envelope{env},
 	}
 
@@ -47,7 +47,7 @@ func TestVerifyAttestations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockPE := policy.MockPolicyEvaluator{
-				EvaluateFunc: func(_ context.Context, _ oci.AttestationResolver, _ *policy.Policy, _ *policy.Input) (*policy.Result, error) {
+				EvaluateFunc: func(_ context.Context, _ attestation.Resolver, _ *policy.Policy, _ *policy.Input) (*policy.Result, error) {
 					return policy.AllowedResult(), tc.policyEvaluationError
 				},
 			}
@@ -72,7 +72,7 @@ func TestVSA(t *testing.T) {
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
 	opts := &attestation.SigningOptions{}
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	assert.NoError(t, err)
 	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestVerificationFailure(t *testing.T) {
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
 	opts := &attestation.SigningOptions{}
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	assert.NoError(t, err)
 	signedManifests, err := SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestSignVerify(t *testing.T) {
 		{name: "mirror no match", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "incorrect.org/library/test-image:test", expectError: true},
 	}
 
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	assert.NoError(t, err)
 
 	for _, tc := range testCases {

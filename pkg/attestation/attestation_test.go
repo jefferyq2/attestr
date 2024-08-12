@@ -1,21 +1,18 @@
-package test
+package attestation_test
 
 import (
-	"path/filepath"
 	"testing"
 
+	"github.com/docker/attest/internal/test"
+	"github.com/docker/attest/pkg/attestation"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/stretchr/testify/assert"
 )
 
-var UnsignedTestImage = filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
-
-const (
-	ExpectedStatements = 4
-)
+const ExpectedStatements = 4
 
 func TestExtractAnnotatedStatements(t *testing.T) {
-	statements, err := ExtractAnnotatedStatements(UnsignedTestImage, intoto.PayloadType)
+	statements, err := attestation.ExtractAnnotatedStatements(test.UnsignedTestImage, intoto.PayloadType)
 	assert.NoError(t, err)
 	assert.Equalf(t, len(statements), ExpectedStatements, "expected %d statement, got %d", ExpectedStatements, len(statements))
 }

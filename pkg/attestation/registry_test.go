@@ -1,4 +1,4 @@
-package oci_test
+package attestation_test
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func TestRegistry(t *testing.T) {
 	require.NoError(t, err)
 
 	opts := &attestation.SigningOptions{}
-	attIdx, err := oci.IndexFromPath(oci.UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 	signedManifests, err := attest.SignStatements(ctx, attIdx.Index, signer, opts)
 	require.NoError(t, err)

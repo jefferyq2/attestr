@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/distribution/reference"
+	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
 )
@@ -211,28 +212,28 @@ func normalizeImageName(imageName string) (string, error) {
 func CreateImageDetailsResolver(imageSource *oci.ImageSpec) (oci.ImageDetailsResolver, error) {
 	switch imageSource.Type {
 	case oci.OCI:
-		return oci.NewOCILayoutAttestationResolver(imageSource)
+		return attestation.NewOCILayoutResolver(imageSource)
 	case oci.Docker:
 		return oci.NewRegistryImageDetailsResolver(imageSource)
 	}
 	return nil, fmt.Errorf("unsupported image source type: %s", imageSource.Type)
 }
 
-func CreateAttestationResolver(resolver oci.ImageDetailsResolver, mapping *config.PolicyMapping) (oci.AttestationResolver, error) {
+func CreateAttestationResolver(resolver oci.ImageDetailsResolver, mapping *config.PolicyMapping) (attestation.Resolver, error) {
 	if mapping.Attestations != nil {
 		if mapping.Attestations.Style == config.AttestationStyleAttached {
 			switch resolver := resolver.(type) {
 			case *oci.RegistryImageDetailsResolver:
-				return oci.NewRegistryAttestationResolver(resolver)
-			case *oci.LayoutResolver:
+				return attestation.NewRegistryResolver(resolver)
+			case *attestation.LayoutResolver:
 				return resolver, nil
 			default:
 				return nil, fmt.Errorf("unsupported image details resolver type: %T", resolver)
 			}
 		}
 		if mapping.Attestations.Repo != "" {
-			return oci.NewReferrersAttestationResolver(resolver, oci.WithReferrersRepo(mapping.Attestations.Repo))
+			return attestation.NewReferrersResolver(resolver, attestation.WithReferrersRepo(mapping.Attestations.Repo))
 		}
 	}
-	return oci.NewReferrersAttestationResolver(resolver)
+	return attestation.NewReferrersResolver(resolver)
 }

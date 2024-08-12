@@ -23,7 +23,6 @@ import (
 )
 
 var (
-	UnsignedTestImage   = filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
 	NoProvenanceImage   = filepath.Join("..", "..", "test", "testdata", "no-provenance-image")
 	PassPolicyDir       = filepath.Join("..", "..", "test", "testdata", "local-policy-pass")
 	LocalPolicy         = filepath.Join("..", "..", "test", "testdata", "local-policy")
@@ -94,7 +93,7 @@ func TestAttestationReferenceTypes(t *testing.T) {
 			opts := &attestation.SigningOptions{
 				SkipTL: true,
 			}
-			attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+			attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 			require.NoError(t, err)
 
 			indexName := fmt.Sprintf("%s/repo:root", u.Host)
@@ -120,7 +119,9 @@ func TestAttestationReferenceTypes(t *testing.T) {
 			output, err := oci.ParseImageSpec(outputRepo)
 			require.NoError(t, err)
 			for _, attIdx := range signedManifests {
-				err = oci.SaveReferrers(attIdx, []*oci.ImageSpec{output})
+				images, err := attIdx.BuildReferringArtifacts()
+				require.NoError(t, err)
+				err = oci.SaveImagesNoTag(images, []*oci.ImageSpec{output})
 				require.NoError(t, err)
 			}
 
@@ -213,7 +214,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 		opts := &attestation.SigningOptions{
 			SkipTL: true,
 		}
-		attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+		attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 		require.NoError(t, err)
 
 		indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
@@ -226,7 +227,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 		// push signed attestation image to the ref server
 		for _, signedManifest := range signedManifests {
 			// push references using subject-digest.att convention
-			image, err := signedManifest.BuildAttestationImage()
+			image, err := signedManifest.BuildImage()
 			require.NoError(t, err)
 			err = oci.PushImageToRegistry(image, fmt.Sprintf("%s/%s:tag-does-not-matter", refServerURL.Host, repoName))
 			require.NoError(t, err)
@@ -239,7 +240,7 @@ func TestReferencesInDifferentRepo(t *testing.T) {
 			opts := &attestation.SigningOptions{
 				SkipTL: true,
 			}
-			attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+			attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 			require.NoError(t, err)
 
 			indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
@@ -294,7 +295,7 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 	opts := &attestation.SigningOptions{
 		SkipTL: true,
 	}
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 
 	indexName := fmt.Sprintf("%s/%s:latest", serverURL.Host, repoName)
@@ -330,7 +331,7 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 
 func TestEmptyConfigImageDigest(t *testing.T) {
 	empty := empty.Image
-	img := attestation.EmptyConfigImage{empty}
+	img := oci.EmptyConfigImage{Image: empty}
 	mf, err := img.RawManifest()
 	require.NoError(t, err)
 	hash := util.SHA256Hex(mf)

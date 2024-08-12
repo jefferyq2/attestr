@@ -23,7 +23,6 @@ import (
 )
 
 var (
-	UnsignedTestImage   = filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
 	NoProvenanceImage   = filepath.Join("..", "..", "test", "testdata", "no-provenance-image")
 	PassPolicyDir       = filepath.Join("..", "..", "test", "testdata", "local-policy-pass")
 	PassMirrorPolicyDir = filepath.Join("..", "..", "test", "testdata", "local-policy-mirror")
@@ -42,8 +41,8 @@ func TestSignVerifyOCILayout(t *testing.T) {
 		expectedAttestations int
 		replace              bool
 	}{
-		{"signed replaced", UnsignedTestImage, 0, 4, true},
-		{"without replace", UnsignedTestImage, 4, 4, false},
+		{"signed replaced", test.UnsignedTestImage, 0, 4, true},
+		{"without replace", test.UnsignedTestImage, 4, 4, false},
 		// image without provenance doesn't fail
 		{"no provenance (replace)", NoProvenanceImage, 0, 2, true},
 		{"no provenance (no replace)", NoProvenanceImage, 2, 2, false},
@@ -70,10 +69,10 @@ func TestSignVerifyOCILayout(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equalf(t, OutcomeSuccess, policy.Outcome, "Policy should have been found")
 
-			var allEnvelopes []*test.AnnotatedStatement
+			var allEnvelopes []*attestation.AnnotatedStatement
 			for _, predicate := range []string{intoto.PredicateSPDX, v02.PredicateSLSAProvenance, attestation.VSAPredicateType} {
 				mt, _ := attestation.DSSEMediaType(predicate)
-				statements, err := test.ExtractAnnotatedStatements(outputLayout, mt)
+				statements, err := attestation.ExtractAnnotatedStatements(outputLayout, mt)
 				require.NoError(t, err)
 				allEnvelopes = append(allEnvelopes, statements...)
 
@@ -83,7 +82,7 @@ func TestSignVerifyOCILayout(t *testing.T) {
 				}
 			}
 			assert.Equalf(t, tc.expectedAttestations, len(allEnvelopes), "expected %d attestations, got %d", tc.expectedAttestations, len(allEnvelopes))
-			statements, err := test.ExtractAnnotatedStatements(outputLayout, intoto.PayloadType)
+			statements, err := attestation.ExtractAnnotatedStatements(outputLayout, intoto.PayloadType)
 			require.NoError(t, err)
 			assert.Equalf(t, tc.expectedStatements, len(statements), "expected %d statement, got %d", tc.expectedStatements, len(statements))
 		})
@@ -125,10 +124,10 @@ func TestAddSignedLayerAnnotations(t *testing.T) {
 				},
 				SubjectDescriptor: &v1.Descriptor{},
 			}
-			err := manifest.AddAttestation(ctx, signer, originalLayer.Statement, opts)
+			err := manifest.Add(ctx, signer, originalLayer.Statement, opts)
 			require.NoError(t, err)
 
-			newImg, err := manifest.BuildAttestationImage(attestation.WithReplacedLayers(tc.replace))
+			newImg, err := manifest.BuildImage(attestation.WithReplacedLayers(tc.replace))
 			require.NoError(t, err)
 			mf, _ := newImg.RawManifest()
 			type Annotations struct {
@@ -178,19 +177,19 @@ func TestSimpleStatementSigning(t *testing.T) {
 			}
 			manifest, err := NewAttestationManifest(subject)
 			require.NoError(t, err)
-			err = manifest.AddAttestation(ctx, signer, statement, opts)
+			err = manifest.Add(ctx, signer, statement, opts)
 			require.NoError(t, err)
 
-			err = manifest.AddAttestation(ctx, signer, statement2, opts)
+			err = manifest.Add(ctx, signer, statement2, opts)
 			require.NoError(t, err)
 
 			// fake that the manfifest was loaded from a real image
 			manifest.OriginalLayers = manifest.SignedLayers
-			envelopes, err := oci.ExtractEnvelopes(manifest, attestation.VSAPredicateType)
+			envelopes, err := attestation.ExtractEnvelopes(manifest, attestation.VSAPredicateType)
 			require.NoError(t, err)
 			assert.Len(t, envelopes, 2)
 
-			newImg, err := manifest.BuildAttestationImage(attestation.WithReplacedLayers(tc.replace))
+			newImg, err := manifest.BuildImage(attestation.WithReplacedLayers(tc.replace))
 			require.NoError(t, err)
 			layers, err := newImg.Layers()
 			require.NoError(t, err)
@@ -225,7 +224,9 @@ func TestSimpleStatementSigning(t *testing.T) {
 			indexName := fmt.Sprintf("%s/repo:root", u.Host)
 			output, err := oci.ParseImageSpecs(indexName)
 			require.NoError(t, err)
-			err = oci.SaveReferrers(manifest, output)
+			artifacts, err := manifest.BuildReferringArtifacts()
+			require.NoError(t, err)
+			err = oci.SaveImagesNoTag(artifacts, output)
 			require.NoError(t, err)
 		})
 	}

@@ -112,7 +112,7 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 	}, nil
 }
 
-func VerifyAttestations(ctx context.Context, resolver oci.AttestationResolver, pctx *policy.Policy) (*VerificationResult, error) {
+func VerifyAttestations(ctx context.Context, resolver attestation.Resolver, pctx *policy.Policy) (*VerificationResult, error) {
 	desc, err := resolver.ImageDescriptor(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image descriptor: %w", err)
