@@ -27,7 +27,7 @@ func TestGetTufTargetsMirror(t *testing.T) {
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
-	m, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+"/metadata", server.URL+"/targets", tuf.NewMockVersionChecker())
+	m, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+metadataPath, server.URL+targetsPath, tuf.NewMockVersionChecker())
 	assert.NoError(t, err)
 
 	targets, err := m.GetTUFTargetMirrors()
@@ -61,7 +61,7 @@ func TestTargetDelegationMetadata(t *testing.T) {
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
-	tm, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+"/metadata", server.URL+"/targets", tuf.NewMockVersionChecker())
+	tm, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+metadataPath, server.URL+targetsPath, tuf.NewMockVersionChecker())
 	assert.NoError(t, err)
 
 	targets, err := tm.TUFClient.LoadDelegatedTargets("test-role", "targets")
@@ -74,7 +74,7 @@ func TestGetDelegatedTargetMirrors(t *testing.T) {
 	defer server.Close()
 
 	path := test.CreateTempDir(t, "", "tuf_temp")
-	m, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+"/metadata", server.URL+"/targets", tuf.NewMockVersionChecker())
+	m, err := NewTUFMirror(embed.RootDev.Data, path, server.URL+metadataPath, server.URL+targetsPath, tuf.NewMockVersionChecker())
 	assert.NoError(t, err)
 
 	mirrors, err := m.GetDelegatedTargetMirrors()

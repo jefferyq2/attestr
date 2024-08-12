@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/docker/attest/pkg/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -17,7 +18,7 @@ import (
 // -----------------
 
 // GetMetadataManifest returns an image with TUF root metadata as layers.
-func (m *TUFMirror) GetMetadataManifest(metadataURL string) (v1.Image, error) {
+func (m *TUFMirror) GetMetadataManifest(metadataURL string) (*oci.EmptyConfigImage, error) {
 	metadata, err := m.getMetadataMirror(metadataURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
@@ -26,7 +27,7 @@ func (m *TUFMirror) GetMetadataManifest(metadataURL string) (v1.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build metadata manifest: %w", err)
 	}
-	return manifest, nil
+	return &oci.EmptyConfigImage{Image: manifest}, nil
 }
 
 // getMetadataMirror returns a TufMetadata struct with TUF metadata as map of file names to bytes.
@@ -183,7 +184,7 @@ func (m *TUFMirror) buildDelegatedMetadataManifests(delegated []DelegatedTargetM
 		if err != nil {
 			return nil, fmt.Errorf("failed to append delegated targets layer to image: %w", err)
 		}
-		manifests = append(manifests, &Image{Image: img, Tag: role.Name})
+		manifests = append(manifests, &Image{Image: &oci.EmptyConfigImage{Image: img}, Tag: role.Name})
 	}
 	return manifests, nil
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/attest/pkg/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -42,7 +43,7 @@ func (m *TUFMirror) GetTUFTargetMirrors() ([]*Image, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to append role layer to image: %w", err)
 		}
-		targetMirrors = append(targetMirrors, &Image{Image: img, Tag: name})
+		targetMirrors = append(targetMirrors, &Image{Image: &oci.EmptyConfigImage{Image: img}, Tag: name})
 	}
 	return targetMirrors, nil
 }
@@ -93,9 +94,10 @@ func (m *TUFMirror) GetDelegatedTargetMirrors() ([]*Index, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to append role layer to image: %w", err)
 			}
+			emptyConfigImage := &oci.EmptyConfigImage{Image: img}
 			// append image to index with annotation
 			index = mutate.AppendManifests(index, mutate.IndexAddendum{
-				Add: img,
+				Add: emptyConfigImage,
 				Descriptor: v1.Descriptor{
 					Annotations: map[string]string{
 						tufFileAnnotation: fmt.Sprintf("%s/%s", subdir, name),
