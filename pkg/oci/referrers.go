@@ -54,9 +54,6 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 		return nil, fmt.Errorf("failed to get descriptor: %w", err)
 	}
 	subjectDigest := desc.Digest.String()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get digest: %w", err)
-	}
 	var referrersSubjectRef name.Digest
 	if r.referrersRepo != "" {
 		referrersSubjectRef, err = name.NewDigest(fmt.Sprintf("%s@%s", strings.TrimPrefix(r.referrersRepo, RegistryPrefix), subjectDigest))
