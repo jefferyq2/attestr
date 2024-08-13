@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
+// PushImageToRegistry pushes an image to the registry with the specified name.
 func PushImageToRegistry(image v1.Image, imageName string) error {
 	ref, err := name.ParseReference(imageName)
 	if err != nil {
@@ -22,6 +23,7 @@ func PushImageToRegistry(image v1.Image, imageName string) error {
 	return remote.Write(ref, image, MultiKeychainOption())
 }
 
+// PushIndexToRegistry pushes an index to the registry with the specified name.
 func PushIndexToRegistry(index v1.ImageIndex, imageName string) error {
 	// Parse the index name
 	ref, err := name.ParseReference(imageName)
@@ -33,6 +35,7 @@ func PushIndexToRegistry(index v1.ImageIndex, imageName string) error {
 	return remote.WriteIndex(ref, index, MultiKeychainOption())
 }
 
+// SaveIndexAsOCILayout saves an image as an OCI layout to the specified path.
 func SaveImageAsOCILayout(image v1.Image, path string) error {
 	// Save the image to the local filesystem
 	err := os.MkdirAll(path, os.ModePerm)
@@ -47,6 +50,7 @@ func SaveImageAsOCILayout(image v1.Image, path string) error {
 	return l.AppendImage(image)
 }
 
+// SaveIndexAsOCILayout saves an index as an OCI layout to the specified path.
 func SaveIndexAsOCILayout(image v1.ImageIndex, path string) error {
 	// Save the index to the local filesystem
 	err := os.MkdirAll(path, os.ModePerm)
@@ -61,6 +65,7 @@ func SaveIndexAsOCILayout(image v1.ImageIndex, path string) error {
 	return nil
 }
 
+// SaveIndex saves an index to the specified outputs.
 func SaveIndex(outputs []*ImageSpec, index v1.ImageIndex, indexName string) error {
 	// split output by comma and write or push each one
 	for _, output := range outputs {
@@ -88,6 +93,7 @@ func SaveIndex(outputs []*ImageSpec, index v1.ImageIndex, indexName string) erro
 	return nil
 }
 
+// SaveImage saves an image to the specified output.
 func SaveImage(output *ImageSpec, image v1.Image, imageName string) error {
 	if output.Type == OCI {
 		idx := v1.ImageIndex(empty.Index)
@@ -112,6 +118,7 @@ func SaveImage(output *ImageSpec, image v1.Image, imageName string) error {
 	return nil
 }
 
+// SaveImagesNoTag saves a list of images by digest to the specified outputs.
 func SaveImagesNoTag(images []v1.Image, outputs []*ImageSpec) error {
 	for _, output := range outputs {
 		// OCI layout output not supported
