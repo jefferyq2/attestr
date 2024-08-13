@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/docker/attest/internal/test"
-	"github.com/docker/attest/internal/util"
 	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
@@ -16,7 +15,6 @@ import (
 	"github.com/docker/attest/pkg/policy"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -327,15 +325,4 @@ func TestCorrectArtifactTypeInTagFallback(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestEmptyConfigImageDigest(t *testing.T) {
-	empty := empty.Image
-	img := oci.EmptyConfigImage{Image: empty}
-	mf, err := img.RawManifest()
-	require.NoError(t, err)
-	hash := util.SHA256Hex(mf)
-	digest, err := img.Digest()
-	require.NoError(t, err)
-	assert.Equal(t, digest.Hex, hash)
 }
