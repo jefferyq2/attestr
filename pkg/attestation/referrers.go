@@ -1,22 +1,21 @@
-package oci
+package attestation
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	"github.com/docker/attest/pkg/attestation"
-	att "github.com/docker/attest/pkg/attestation"
+	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 type ReferrersResolver struct {
 	referrersRepo string
-	ImageDetailsResolver
+	oci.ImageDetailsResolver
 }
 
-func NewReferrersAttestationResolver(src ImageDetailsResolver, options ...func(*ReferrersResolver) error) (*ReferrersResolver, error) {
+func NewReferrersResolver(src oci.ImageDetailsResolver, options ...func(*ReferrersResolver) error) (*ReferrersResolver, error) {
 	res := &ReferrersResolver{
 		ImageDetailsResolver: src,
 	}
@@ -36,8 +35,8 @@ func WithReferrersRepo(repo string) func(*ReferrersResolver) error {
 	}
 }
 
-func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateType string) ([]*attestation.Manifest, error) {
-	dsseMediaType, err := attestation.DSSEMediaType(predicateType)
+func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateType string) ([]*Manifest, error) {
+	dsseMediaType, err := DSSEMediaType(predicateType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DSSE media type for predicate '%s': %w", predicateType, err)
 	}
@@ -54,19 +53,16 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 		return nil, fmt.Errorf("failed to get descriptor: %w", err)
 	}
 	subjectDigest := desc.Digest.String()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get digest: %w", err)
-	}
 	var referrersSubjectRef name.Digest
 	if r.referrersRepo != "" {
-		referrersSubjectRef, err = name.NewDigest(fmt.Sprintf("%s@%s", strings.TrimPrefix(r.referrersRepo, RegistryPrefix), subjectDigest))
+		referrersSubjectRef, err = name.NewDigest(fmt.Sprintf("%s@%s", strings.TrimPrefix(r.referrersRepo, oci.RegistryPrefix), subjectDigest))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create referrers reference: %w", err)
 		}
 	} else {
 		referrersSubjectRef = subjectRef.Context().Digest(subjectDigest)
 	}
-	options := WithOptions(ctx, nil)
+	options := oci.WithOptions(ctx, nil)
 	options = append(options, remote.WithFilter("artifactType", dsseMediaType))
 	referrersIndex, err := remote.Referrers(referrersSubjectRef, options...)
 	if err != nil {
@@ -76,16 +72,16 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index manifest: %w", err)
 	}
-	aManifests := make([]*attestation.Manifest, 0)
+	aManifests := make([]*Manifest, 0)
 	for i := range referrersIndexManifest.Manifests {
 		m := referrersIndexManifest.Manifests[i]
 		remoteRef := referrersSubjectRef.Context().Digest(m.Digest.String())
-		options = WithOptions(ctx, nil)
+		options = oci.WithOptions(ctx, nil)
 		attestationImage, err := remote.Image(remoteRef, options...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get referred image: %w", err)
 		}
-		layers, err := attestation.GetAttestationsFromImage(attestationImage)
+		layers, err := layersFromImage(attestationImage)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get attestations from image: %w", err)
 		}
@@ -99,7 +95,7 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 		if string(mt) != dsseMediaType {
 			return nil, fmt.Errorf("expected layer media type %s, got %s", dsseMediaType, mt)
 		}
-		attest := &attestation.Manifest{
+		attest := &Manifest{
 			SubjectName:        imageName,
 			OriginalLayers:     layers,
 			OriginalDescriptor: &m,
@@ -110,12 +106,12 @@ func (r *ReferrersResolver) resolveAttestations(ctx context.Context, predicateTy
 	return aManifests, nil
 }
 
-func (r *ReferrersResolver) Attestations(ctx context.Context, predicateType string) ([]*att.Envelope, error) {
+func (r *ReferrersResolver) Attestations(ctx context.Context, predicateType string) ([]*Envelope, error) {
 	manifests, err := r.resolveAttestations(ctx, predicateType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve attestations: %w", err)
 	}
-	var envs []*att.Envelope
+	var envs []*Envelope
 	for _, attest := range manifests {
 		es, err := ExtractEnvelopes(attest, predicateType)
 		if err != nil {

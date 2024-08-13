@@ -32,6 +32,9 @@ const (
 	tufTargetMediaType = "application/vnd.tuf.target"
 	testRole           = "test-role"
 	tufMetadataRepo    = "tuf-metadata"
+	targetsPath        = "/tuf-targets"
+	metadataPath       = "/tuf-metadata"
+	targetsRepo        = "test" + targetsPath
 )
 
 func TestRegistryFetcher(t *testing.T) {
@@ -44,9 +47,9 @@ func TestRegistryFetcher(t *testing.T) {
 	}()
 	LoadRegistryTestData(t, regAddr, OCITUFTestDataPath)
 
-	metadataRepo := regAddr.Host + "/tuf-metadata"
+	metadataRepo := regAddr.Host + metadataPath
 	metadataImgTag := LatestTag
-	targetsRepo := regAddr.Host + "/tuf-targets"
+	targetsRepo := regAddr.Host + targetsPath
 	targetFile := "test.txt"
 	delegatedRole := testRole
 	dir := CreateTempDir(t, "", "tuf_temp")
@@ -122,7 +125,7 @@ func TestFindFileInManifest(t *testing.T) {
 	// make test image manifest
 	file := "test.json"
 	data := []byte("test")
-	hash := v1.Hash{Algorithm: "sha256", Hex: util.SHA256Hex(data)}
+	hash := v1.Hash{Hex: util.SHA256Hex(data)}
 	img := empty.Image
 	img = mutate.MediaType(img, types.OCIManifestSchema1)
 	img = mutate.ConfigMediaType(img, types.OCIConfigJSON)
@@ -150,7 +153,6 @@ func TestFindFileInManifest(t *testing.T) {
 	indexManifest, err := idx.RawManifest()
 	assert.NoError(t, err)
 	// cache image layer
-	targetsRepo := "test/tuf-targets"
 	d := &RegistryFetcher{
 		cache:       NewImageCache(),
 		targetsRepo: targetsRepo,
@@ -183,9 +185,8 @@ func TestFindFileInManifest(t *testing.T) {
 }
 
 func TestParseImgRef(t *testing.T) {
-	metadataRepo := "test/tuf-metadata"
+	metadataRepo := "test" + metadataPath
 	metadataTag := LatestTag
-	targetsRepo := "test/tuf-targets"
 	delegatedRole := testRole
 	testCases := []struct {
 		name         string

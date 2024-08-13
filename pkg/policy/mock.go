@@ -3,14 +3,14 @@ package policy
 import (
 	"context"
 
-	"github.com/docker/attest/pkg/oci"
+	"github.com/docker/attest/pkg/attestation"
 )
 
 type MockPolicyEvaluator struct {
-	EvaluateFunc func(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *Input) (*Result, error)
+	EvaluateFunc func(ctx context.Context, resolver attestation.Resolver, pctx *Policy, input *Input) (*Result, error)
 }
 
-func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *Input) (*Result, error) {
+func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver attestation.Resolver, pctx *Policy, input *Input) (*Result, error) {
 	if pe.EvaluateFunc != nil {
 		return pe.EvaluateFunc(ctx, resolver, pctx, input)
 	}
@@ -19,7 +19,7 @@ func (pe *MockPolicyEvaluator) Evaluate(ctx context.Context, resolver oci.Attest
 
 func GetMockPolicy() Evaluator {
 	return &MockPolicyEvaluator{
-		EvaluateFunc: func(_ context.Context, _ oci.AttestationResolver, _ *Policy, _ *Input) (*Result, error) {
+		EvaluateFunc: func(_ context.Context, _ attestation.Resolver, _ *Policy, _ *Input) (*Result, error) {
 			return AllowedResult(), nil
 		},
 	}

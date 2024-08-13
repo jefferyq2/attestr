@@ -2,14 +2,11 @@ package oci
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/docker/attest/pkg/attestation"
-	att "github.com/docker/attest/pkg/attestation"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common"
@@ -45,36 +42,7 @@ func WithOptions(ctx context.Context, platform *v1.Platform) []remote.Option {
 	return options
 }
 
-func ExtractEnvelopes(manifest *attestation.Manifest, predicateType string) ([]*att.Envelope, error) {
-	var envs []*att.Envelope
-	dsseMediaType, err := attestation.DSSEMediaType(predicateType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get DSSE media type for predicate '%s': %w", predicateType, err)
-	}
-	for _, attestationLayer := range manifest.OriginalLayers {
-		mt, err := attestationLayer.Layer.MediaType()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get layer media type: %w", err)
-		}
-		if string(mt) == dsseMediaType {
-			reader, err := attestationLayer.Layer.Uncompressed()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get layer contents: %w", err)
-			}
-			defer reader.Close()
-			env := new(att.Envelope)
-			err = json.NewDecoder(reader).Decode(&env)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode envelope: %w", err)
-			}
-			envs = append(envs, env)
-		}
-	}
-
-	return envs, nil
-}
-
-func imageDescriptor(ix *v1.IndexManifest, platform *v1.Platform) (*v1.Descriptor, error) {
+func ImageDescriptor(ix *v1.IndexManifest, platform *v1.Platform) (*v1.Descriptor, error) {
 	for i := range ix.Manifests {
 		m := &ix.Manifests[i]
 		if (m.MediaType == ocispec.MediaTypeImageManifest || m.MediaType == "application/vnd.docker.distribution.manifest.v2+json") && m.Platform.Equals(*platform) {
@@ -82,18 +50,6 @@ func imageDescriptor(ix *v1.IndexManifest, platform *v1.Platform) (*v1.Descripto
 		}
 	}
 	return nil, fmt.Errorf("no image found for platform %v", platform)
-}
-
-func attestationDigestForDigest(ix *v1.IndexManifest, imageDigest string, attestType string) (string, error) {
-	for i := range ix.Manifests {
-		m := &ix.Manifests[i]
-		if v, ok := m.Annotations[att.DockerReferenceType]; ok && v == attestType {
-			if d, ok := m.Annotations[att.DockerReferenceDigest]; ok && d == imageDigest {
-				return m.Digest.String(), nil
-			}
-		}
-	}
-	return "", fmt.Errorf("no attestation found for image %s", imageDigest)
 }
 
 func RefToPURL(ref string, platform *v1.Platform) (string, bool, error) {
@@ -150,7 +106,7 @@ func SplitDigest(digest string) (common.DigestSet, error) {
 }
 
 func ReplaceTagInSpec(src *ImageSpec, digest v1.Hash) (*ImageSpec, error) {
-	newName, err := replaceTag(src.Identifier, digest)
+	newName, err := ReplaceTag(src.Identifier, digest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse repo name: %w", err)
 	}
@@ -162,7 +118,7 @@ func ReplaceTagInSpec(src *ImageSpec, digest v1.Hash) (*ImageSpec, error) {
 }
 
 // so that the index tag is replaced with a tag unique to the image digest and doesn't overwrite it.
-func replaceTag(image string, digest v1.Hash) (string, error) {
+func ReplaceTag(image string, digest v1.Hash) (string, error) {
 	if strings.HasPrefix(image, LocalPrefix) {
 		return image, nil
 	}

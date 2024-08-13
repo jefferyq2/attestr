@@ -7,8 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	att "github.com/docker/attest/pkg/attestation"
-	"github.com/docker/attest/pkg/oci"
+	"github.com/docker/attest/pkg/attestation"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -36,7 +35,7 @@ func NewRegoEvaluator(debug bool) Evaluator {
 	}
 }
 
-func (re *regoEvaluator) Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *Input) (*Result, error) {
+func (re *regoEvaluator) Evaluate(ctx context.Context, resolver attestation.Resolver, pctx *Policy, input *Input) (*Result, error) {
 	var regoOpts []func(*rego.Rego)
 
 	// Create a new in-memory store
@@ -170,7 +169,7 @@ func handleErrors2(f func(rCtx *rego.BuiltinContext, a, b *ast.Term) (*ast.Term,
 	}
 }
 
-func RegoFunctions(resolver oci.AttestationResolver) []*tester.Builtin {
+func RegoFunctions(resolver attestation.Resolver) []*tester.Builtin {
 	return []*tester.Builtin{
 		{
 			Decl: verifyDecl,
@@ -197,7 +196,7 @@ func RegoFunctions(resolver oci.AttestationResolver) []*tester.Builtin {
 	}
 }
 
-func fetchInTotoAttestations(resolver oci.AttestationResolver) rego.Builtin1 {
+func fetchInTotoAttestations(resolver attestation.Resolver) rego.Builtin1 {
 	return func(rCtx rego.BuiltinContext, predicateTypeTerm *ast.Term) (*ast.Term, error) {
 		predicateTypeStr, ok := predicateTypeTerm.Value.(ast.String)
 		if !ok {
@@ -228,8 +227,8 @@ func fetchInTotoAttestations(resolver oci.AttestationResolver) rego.Builtin1 {
 }
 
 func verifyInTotoEnvelope(rCtx *rego.BuiltinContext, envTerm, optsTerm *ast.Term) (*ast.Term, error) {
-	env := new(att.Envelope)
-	opts := new(att.VerifyOptions)
+	env := new(attestation.Envelope)
+	opts := new(attestation.VerifyOptions)
 	err := ast.As(envTerm.Value, env)
 	if err != nil {
 		return nil, fmt.Errorf("failed to cast envelope: %w", err)
@@ -239,7 +238,7 @@ func verifyInTotoEnvelope(rCtx *rego.BuiltinContext, envTerm, optsTerm *ast.Term
 		return nil, fmt.Errorf("failed to cast verifier options: %w", err)
 	}
 
-	payload, err := att.VerifyDSSE(rCtx.Context, env, opts)
+	payload, err := attestation.VerifyDSSE(rCtx.Context, env, opts)
 	if err != nil {
 		return nil, err
 	}

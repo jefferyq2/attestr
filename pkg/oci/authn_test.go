@@ -1,19 +1,17 @@
 //go:build e2e
 
-package mirror_test
+package oci_test
 
 import (
-	"path/filepath"
 	"testing"
 
+	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRegistryAuth(t *testing.T) {
-	UnsignedTestImage := filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
-
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 	// test cases for ecr, gcr and dockerhub
 	testCases := []struct {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/signerverifier"
@@ -62,13 +61,13 @@ func ExampleManifest() {
 	}
 
 	// create a new manifest to hold the attestation
-	manifest, err := attest.NewAttestationManifest(desc)
+	manifest, err := attestation.NewManifest(desc)
 	if err != nil {
 		panic(err)
 	}
 
 	// sign and add the attestation to the manifest
-	err = manifest.AddAttestation(context.Background(), signer, statement, opts)
+	err = manifest.Add(context.Background(), signer, statement, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +78,11 @@ func ExampleManifest() {
 	}
 
 	// save the manifest to the registry as a referrers artifact
-	err = oci.SaveReferrers(manifest, output)
+	artifacts, err := manifest.BuildReferringArtifacts()
+	if err != nil {
+		panic(err)
+	}
+	err = oci.SaveImagesNoTag(artifacts, output)
 	if err != nil {
 		panic(err)
 	}

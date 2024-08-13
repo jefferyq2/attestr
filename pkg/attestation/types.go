@@ -64,6 +64,12 @@ type Extension struct {
 	Ext  *DockerDSSEExtension `json:"ext"`
 }
 
+type AnnotatedStatement struct {
+	OCIDescriptor   *v1.Descriptor
+	InTotoStatement *intoto.Statement
+	Annotations     map[string]string
+}
+
 type DockerDSSEExtension struct {
 	TL *DockerTLExtension `json:"tl"`
 }
@@ -81,6 +87,12 @@ type VerifyOptions struct {
 type SigningOptions struct {
 	// don't log to the configured transparency log
 	SkipTL bool
+}
+
+type Options struct {
+	NoReferrers   bool
+	Attach        bool
+	ReferrersRepo string
 }
 
 func DSSEMediaType(predicateType string) (string, error) {

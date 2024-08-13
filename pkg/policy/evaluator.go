@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/attest/pkg/oci"
+	"github.com/docker/attest/pkg/attestation"
 )
 
 type policyEvaluatorCtxKeyType struct{}
@@ -26,5 +26,5 @@ func GetPolicyEvaluator(ctx context.Context) (Evaluator, error) {
 }
 
 type Evaluator interface {
-	Evaluate(ctx context.Context, resolver oci.AttestationResolver, pctx *Policy, input *Input) (*Result, error)
+	Evaluate(ctx context.Context, resolver attestation.Resolver, pctx *Policy, input *Input) (*Result, error)
 }

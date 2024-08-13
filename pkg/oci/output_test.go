@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"testing"
 
 	"github.com/docker/attest/internal/test"
-	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -19,9 +17,8 @@ import (
 )
 
 func TestSavingIndex(t *testing.T) {
-	UnsignedTestImage := filepath.Join("..", "..", "test", "testdata", "unsigned-test-image")
 	outputLayout := test.CreateTempDir(t, "", "mirror-test")
-	attIdx, err := oci.IndexFromPath(UnsignedTestImage)
+	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
 	require.NoError(t, err)
 
 	server := httptest.NewServer(registry.New())
@@ -80,9 +77,9 @@ func TestSavingReferrers(t *testing.T) {
 		MediaType: "application/vnd.oci.image.manifest.v1+json",
 		Digest:    digest,
 	}
-	manifest, err := attest.NewAttestationManifest(subject)
+	manifest, err := attestation.NewManifest(subject)
 	require.NoError(t, err)
-	err = manifest.AddAttestation(ctx, signer, statement, opts)
+	err = manifest.Add(ctx, signer, statement, opts)
 	require.NoError(t, err)
 	server := httptest.NewServer(registry.New(registry.WithReferrersSupport(true)))
 	defer server.Close()
@@ -93,16 +90,18 @@ func TestSavingReferrers(t *testing.T) {
 	indexName := fmt.Sprintf("%s/repo:root", u.Host)
 	output, err := oci.ParseImageSpecs(indexName)
 	require.NoError(t, err)
-	err = oci.SaveReferrers(manifest, output)
+	artifacts, err := manifest.BuildReferringArtifacts()
+	require.NoError(t, err)
+	err = oci.SaveImagesNoTag(artifacts, output)
 	require.NoError(t, err)
 
-	reg := &oci.MockRegistryResolver{
+	reg := &attestation.MockRegistryResolver{
 		Subject:      subject,
-		MockResolver: &oci.MockResolver{},
+		MockResolver: &attestation.MockResolver{},
 		ImageNameStr: indexName,
 	}
 	require.NoError(t, err)
-	refResolver, err := oci.NewReferrersAttestationResolver(reg)
+	refResolver, err := attestation.NewReferrersResolver(reg)
 	require.NoError(t, err)
 	attestations, err := refResolver.Attestations(ctx, attestation.VSAPredicateType)
 	require.NoError(t, err)

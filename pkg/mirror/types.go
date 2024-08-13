@@ -1,6 +1,7 @@
 package mirror
 
 import (
+	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/tuf"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
@@ -32,7 +33,7 @@ type DelegatedTargetMetadata struct {
 }
 
 type Image struct {
-	Image v1.Image
+	Image *oci.EmptyConfigImage
 	Tag   string
 }
 
