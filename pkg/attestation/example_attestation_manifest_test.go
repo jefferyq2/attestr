@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/signerverifier"
@@ -62,7 +61,7 @@ func ExampleManifest() {
 	}
 
 	// create a new manifest to hold the attestation
-	manifest, err := attest.NewAttestationManifest(desc)
+	manifest, err := attestation.NewManifest(desc)
 	if err != nil {
 		panic(err)
 	}

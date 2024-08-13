@@ -21,6 +21,17 @@ import (
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
+// NewManifest creates a new attestation manifest from a descriptor.
+func NewManifest(subject *v1.Descriptor) (*Manifest, error) {
+	return &Manifest{
+		OriginalDescriptor: &v1.Descriptor{
+			MediaType: "application/vnd.oci.image.manifest.v1+json",
+		},
+		OriginalLayers:    []*Layer{},
+		SubjectDescriptor: subject,
+	}, nil
+}
+
 // ManifestsFromIndex extracts all attestation manifests from an index.
 func ManifestsFromIndex(index v1.ImageIndex) ([]*Manifest, error) {
 	idx, err := index.IndexManifest()

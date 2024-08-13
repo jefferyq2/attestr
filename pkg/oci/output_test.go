@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/docker/attest/internal/test"
-	"github.com/docker/attest/pkg/attest"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -78,7 +77,7 @@ func TestSavingReferrers(t *testing.T) {
 		MediaType: "application/vnd.oci.image.manifest.v1+json",
 		Digest:    digest,
 	}
-	manifest, err := attest.NewAttestationManifest(subject)
+	manifest, err := attestation.NewManifest(subject)
 	require.NoError(t, err)
 	err = manifest.Add(ctx, signer, statement, opts)
 	require.NoError(t, err)

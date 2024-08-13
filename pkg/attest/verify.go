@@ -11,7 +11,6 @@ import (
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 )
 
@@ -163,14 +162,4 @@ func VerifyAttestations(ctx context.Context, resolver attestation.Resolver, pctx
 	}
 	verificationResult.SubjectDescriptor = desc
 	return verificationResult, nil
-}
-
-func NewAttestationManifest(subject *v1.Descriptor) (*attestation.Manifest, error) {
-	return &attestation.Manifest{
-		OriginalDescriptor: &v1.Descriptor{
-			MediaType: "application/vnd.oci.image.manifest.v1+json",
-		},
-		OriginalLayers:    []*attestation.Layer{},
-		SubjectDescriptor: subject,
-	}, nil
 }
