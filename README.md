@@ -347,7 +347,9 @@ The VSA can be signed and published to the registry using the signing functions 
     "policy": {
       "uri": "https://example.org/internal-policy/v1",
       "downloadLocation": "https://docker.github.io/tuf-staging/targets/docker/d71d6b8f49fcba1295b16f5394dd5863a14e4277eb663d66d8c48e392509afe0.policy.rego",
-      "digest": {"sha256": "d71d6b8f49fcba1295b16f5394dd5863a14e4277eb663d66d8c48e392509afe0"}
+      "digest": {
+        "sha256": "d71d6b8f49fcba1295b16f5394dd5863a14e4277eb663d66d8c48e392509afe0"
+      }
     },
     "verificationResult": "PASSED",
     "verifiedLevels": ["SLSA_BUILD_LEVEL_3"]
