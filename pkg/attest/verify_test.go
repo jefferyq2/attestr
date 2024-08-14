@@ -112,7 +112,8 @@ func TestVSA(t *testing.T) {
 	assert.Equal(t, "PASSED", attestationPredicate.VerificationResult)
 	assert.Equal(t, "docker-official-images", attestationPredicate.Verifier.ID)
 	assert.Equal(t, []string{"SLSA_BUILD_LEVEL_3"}, attestationPredicate.VerifiedLevels)
-	assert.Equal(t, "https://docker.com/official/policy/v0.1", attestationPredicate.Policy.URI)
+	assert.Equal(t, PassPolicyDir+"/policy.rego", attestationPredicate.Policy.URI)
+	assert.Equal(t, map[string]string{"sha256": "d71d6b8f49fcba1295b16f5394dd5863a14e4277eb663d66d8c48e392509afe0"}, attestationPredicate.Policy.Digest)
 }
 
 func TestVerificationFailure(t *testing.T) {
@@ -162,7 +163,8 @@ func TestVerificationFailure(t *testing.T) {
 	assert.Equal(t, "FAILED", attestationPredicate.VerificationResult)
 	assert.Equal(t, "docker-official-images", attestationPredicate.Verifier.ID)
 	assert.Equal(t, []string{"SLSA_BUILD_LEVEL_3"}, attestationPredicate.VerifiedLevels)
-	assert.Equal(t, "https://docker.com/official/policy/v0.1", attestationPredicate.Policy.URI)
+	assert.Equal(t, FailPolicyDir+"/policy.rego", attestationPredicate.Policy.URI)
+	assert.Equal(t, map[string]string{"sha256": "ad045e1bd7cd602d90196acf68f2c57d7b51565d59e6e30e30d94ae86aa16201"}, attestationPredicate.Policy.Digest)
 }
 
 func TestSignVerify(t *testing.T) {

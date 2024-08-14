@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/distribution/reference"
+	"github.com/docker/attest/internal/util"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
@@ -17,6 +18,8 @@ func resolveLocalPolicy(opts *Options, mapping *config.PolicyMapping, imageName 
 	if opts.LocalPolicyDir == "" {
 		return nil, fmt.Errorf("local policy dir not set")
 	}
+	var URI string
+	var digest map[string]string
 	files := make([]*File, 0, len(mapping.Files))
 	for _, f := range mapping.Files {
 		filename := f.Path
@@ -29,10 +32,21 @@ func resolveLocalPolicy(opts *Options, mapping *config.PolicyMapping, imageName 
 			Path:    filename,
 			Content: fileContents,
 		})
+		// if the file is a policy file, store the URI and digest
+		if filepath.Ext(filename) == ".rego" {
+			// TODO: support multiple rego files, need some way to identify the main policy file
+			if URI != "" {
+				return nil, fmt.Errorf("multiple policy files found in policy mapping")
+			}
+			URI = filePath
+			digest = map[string]string{"sha256": util.SHA256Hex(fileContents)}
+		}
 	}
 	policy := &Policy{
 		InputFiles: files,
 		Mapping:    mapping,
+		URI:        URI,
+		Digest:     digest,
 	}
 	if imageName != matchedName {
 		policy.ResolvedName = matchedName
@@ -41,21 +55,34 @@ func resolveLocalPolicy(opts *Options, mapping *config.PolicyMapping, imageName 
 }
 
 func resolveTUFPolicy(opts *Options, mapping *config.PolicyMapping, imageName string, matchedName string) (*Policy, error) {
+	var URI string
+	var digest map[string]string
 	files := make([]*File, 0, len(mapping.Files))
 	for _, f := range mapping.Files {
 		filename := f.Path
-		_, fileContents, err := opts.TUFClient.DownloadTarget(filename, filepath.Join(opts.LocalTargetsDir, filename))
+		file, err := opts.TUFClient.DownloadTarget(filename, filepath.Join(opts.LocalTargetsDir, filename))
 		if err != nil {
 			return nil, fmt.Errorf("failed to download policy file %s: %w", filename, err)
 		}
 		files = append(files, &File{
 			Path:    filename,
-			Content: fileContents,
+			Content: file.Data,
 		})
+		// if the file is a policy file, store the URI and digest
+		if filepath.Ext(filename) == ".rego" {
+			// TODO: support multiple rego files, need some way to identify the main policy file
+			if URI != "" {
+				return nil, fmt.Errorf("multiple policy files found in policy mapping")
+			}
+			URI = file.TargetURI
+			digest = map[string]string{"sha256": file.Digest}
+		}
 	}
 	policy := &Policy{
 		InputFiles: files,
 		Mapping:    mapping,
+		URI:        URI,
+		Digest:     digest,
 	}
 	if imageName != matchedName {
 		policy.ResolvedName = matchedName

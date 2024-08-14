@@ -26,7 +26,8 @@ type VSAVerifier struct {
 }
 
 type VSAPolicy struct {
-	URI string `json:"uri"`
+	URI    string            `json:"uri"`
+	Digest map[string]string `json:"digest"`
 }
 
 type VSAInputAttestation struct {

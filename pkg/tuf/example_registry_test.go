@@ -28,16 +28,13 @@ func ExampleNewClient_registry() {
 
 	// get trusted tuf metadata
 	trustedMetadata := registryClient.GetMetadata()
-	if err != nil {
-		panic(err)
-	}
 
 	// top-level target files
 	targets := trustedMetadata.Targets[metadata.TARGETS].Signed.Targets
 
 	for _, t := range targets {
 		// download target files
-		_, _, err := registryClient.DownloadTarget(t.Path, filepath.Join(tufOutputPath, "download"))
+		_, err := registryClient.DownloadTarget(t.Path, filepath.Join(tufOutputPath, "download"))
 		if err != nil {
 			panic(err)
 		}
