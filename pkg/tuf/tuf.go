@@ -127,28 +127,26 @@ func NewClient(initialRoot []byte, tufPath, metadataSource, targetsSource string
 }
 
 func (t *Client) generateTargetURI(target *metadata.TargetFiles, digest string) (string, error) {
-	targetBaseURL := ensureTrailingSlash(t.cfg.RemoteTargetsURL)
-	targetRemotePath := target.Path
-	// if PrefixTargetsWithHash is set, we need to prefix the target name with the hash and handle subdirectories
-	// similar logic to https://github.com/theupdateframework/go-tuf/blob/f95222bdd22d2ac4e5b8ed6fe912b645e213c3b5/metadata/updater/updater.go#L227-L247
-	if t.cfg.PrefixTargetsWithHash {
-		baseName := filepath.Base(targetRemotePath)
-		dirName, ok := strings.CutSuffix(targetRemotePath, "/"+baseName)
-		if !ok {
-			// <hash>.<target-name>
-			targetRemotePath = fmt.Sprintf("%s.%s", digest, baseName)
-		} else {
-			// <dir-prefix>/<hash>.<target-name>
-			targetRemotePath = fmt.Sprintf("%s/%s.%s", dirName, digest, baseName)
-		}
-	}
-	fullURL := fmt.Sprintf("%s%s", targetBaseURL, targetRemotePath)
-
 	switch fetcher := t.cfg.Fetcher.(type) {
 	case *RegistryFetcher:
 		return fmt.Sprintf("%s@sha256:%s", t.cfg.RemoteTargetsURL, digest), nil
 	case *fetcher.DefaultFetcher:
-		return fullURL, nil
+		targetBaseURL := ensureTrailingSlash(t.cfg.RemoteTargetsURL)
+		targetRemotePath := target.Path
+		// if PrefixTargetsWithHash is set, we need to prefix the target name with the hash and handle subdirectories
+		// similar logic to https://github.com/theupdateframework/go-tuf/blob/f95222bdd22d2ac4e5b8ed6fe912b645e213c3b5/metadata/updater/updater.go#L227-L247
+		if t.cfg.PrefixTargetsWithHash {
+			baseName := filepath.Base(targetRemotePath)
+			dirName, ok := strings.CutSuffix(targetRemotePath, "/"+baseName)
+			if !ok {
+				// <hash>.<target-name>
+				targetRemotePath = fmt.Sprintf("%s.%s", digest, baseName)
+			} else {
+				// <dir-prefix>/<hash>.<target-name>
+				targetRemotePath = fmt.Sprintf("%s/%s.%s", dirName, digest, baseName)
+			}
+		}
+		return fmt.Sprintf("%s%s", targetBaseURL, targetRemotePath), nil
 	default:
 		return "", fmt.Errorf("unsupported fetcher type: %T", fetcher)
 	}
