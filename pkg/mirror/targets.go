@@ -23,7 +23,7 @@ func (m *TUFMirror) GetTUFTargetMirrors() ([]*Image, error) {
 	targets := md.Targets[metadata.TARGETS].Signed.Targets
 	for _, t := range targets {
 		// download target file
-		_, data, err := m.TUFClient.DownloadTarget(t.Path, filepath.Join(m.tufPath, "download"))
+		file, err := m.TUFClient.DownloadTarget(t.Path, filepath.Join(m.tufPath, "download"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to download target %s: %w", t.Path, err)
 		}
@@ -38,7 +38,7 @@ func (m *TUFMirror) GetTUFTargetMirrors() ([]*Image, error) {
 		}
 		name := hash.String() + "." + t.Path
 		ann := map[string]string{tufFileAnnotation: name}
-		layer := mutate.Addendum{Layer: static.NewLayer(data, tufTargetMediaType), Annotations: ann}
+		layer := mutate.Addendum{Layer: static.NewLayer(file.Data, tufTargetMediaType), Annotations: ann}
 		img, err = mutate.Append(img, layer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append role layer to image: %w", err)
@@ -69,7 +69,7 @@ func (m *TUFMirror) GetDelegatedTargetMirrors() ([]*Index, error) {
 		// for each target file, create an image with the target file as a layer
 		for _, target := range roleMeta.Signed.Targets {
 			// download target file
-			_, data, err := m.TUFClient.DownloadTarget(target.Path, filepath.Join(m.tufPath, "download"))
+			file, err := m.TUFClient.DownloadTarget(target.Path, filepath.Join(m.tufPath, "download"))
 			if err != nil {
 				return nil, fmt.Errorf("failed to download target %s: %w", target.Path, err)
 			}
@@ -89,7 +89,7 @@ func (m *TUFMirror) GetDelegatedTargetMirrors() ([]*Index, error) {
 			}
 			name := hash.String() + "." + filename
 			ann := map[string]string{tufFileAnnotation: name}
-			layer := mutate.Addendum{Layer: static.NewLayer(data, tufTargetMediaType), Annotations: ann}
+			layer := mutate.Addendum{Layer: static.NewLayer(file.Data, tufTargetMediaType), Annotations: ann}
 			img, err = mutate.Append(img, layer)
 			if err != nil {
 				return nil, fmt.Errorf("failed to append role layer to image: %w", err)

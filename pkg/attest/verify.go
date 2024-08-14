@@ -86,6 +86,8 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 		return nil, err
 	}
 
+	vsaPolicy := attestation.VSAPolicy{URI: result.Summary.PolicyURI, DownloadLocation: p.URI, Digest: p.Digest}
+
 	return &VerificationResult{
 		Policy:     p,
 		Outcome:    outcome,
@@ -103,7 +105,7 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 				},
 				TimeVerified:       time.Now().UTC().Format(time.RFC3339),
 				ResourceURI:        resourceURI,
-				Policy:             attestation.VSAPolicy{URI: result.Summary.PolicyURI},
+				Policy:             vsaPolicy,
 				VerificationResult: outcomeStr,
 				VerifiedLevels:     result.Summary.SLSALevels,
 			},

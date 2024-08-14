@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/attest/internal/util"
 )
 
 type MockTufClient struct {
@@ -24,10 +26,11 @@ func NewMockTufClient(srcPath string, dstPath string) *MockTufClient {
 	}
 }
 
-func (dc *MockTufClient) DownloadTarget(target string, filePath string) (actualFilePath string, data []byte, err error) {
-	src, err := os.Open(filepath.Join(dc.srcPath, target))
+func (dc *MockTufClient) DownloadTarget(target string, filePath string) (file *TargetFile, err error) {
+	targetPath := filepath.Join(dc.srcPath, target)
+	src, err := os.Open(targetPath)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	defer src.Close()
 
@@ -40,11 +43,11 @@ func (dc *MockTufClient) DownloadTarget(target string, filePath string) (actualF
 
 	err = os.MkdirAll(filepath.Dir(dstFilePath), os.ModePerm)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	dst, err := os.Create(dstFilePath)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	defer dst.Close()
 
@@ -53,10 +56,10 @@ func (dc *MockTufClient) DownloadTarget(target string, filePath string) (actualF
 
 	b, err := io.ReadAll(tee)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	return dstFilePath, b, nil
+	return &TargetFile{ActualFilePath: dstFilePath, TargetURI: targetPath, Data: b, Digest: util.SHA256Hex(b)}, nil
 }
 
 type MockVersionChecker struct {

@@ -67,11 +67,11 @@ func (vc *DefaultVersionChecker) CheckVersion(client Downloader) error {
 
 	// see https://github.com/Masterminds/semver/blob/v3.2.1/README.md#checking-version-constraints
 	// for more information on the expected format of the version constraints in the TUF repo
-	_, versionConstraintsBytes, err := client.DownloadTarget("version-constraints", "")
+	target, err := client.DownloadTarget("version-constraints", "")
 	if err != nil {
 		return fmt.Errorf("failed to download version-constraints: %w", err)
 	}
-	versionConstraints, err := semver.NewConstraint(string(versionConstraintsBytes))
+	versionConstraints, err := semver.NewConstraint(string(target.Data))
 	if err != nil {
 		return fmt.Errorf("failed to parse minimum version: %w", err)
 	}
