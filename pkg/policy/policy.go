@@ -42,6 +42,9 @@ func resolveLocalPolicy(opts *Options, mapping *config.PolicyMapping, imageName 
 			digest = map[string]string{"sha256": util.SHA256Hex(fileContents)}
 		}
 	}
+	if URI == "" {
+		return nil, fmt.Errorf("no policy file found in policy mapping")
+	}
 	policy := &Policy{
 		InputFiles: files,
 		Mapping:    mapping,
@@ -77,6 +80,9 @@ func resolveTUFPolicy(opts *Options, mapping *config.PolicyMapping, imageName st
 			URI = file.TargetURI
 			digest = map[string]string{"sha256": file.Digest}
 		}
+	}
+	if URI == "" {
+		return nil, fmt.Errorf("no policy file found in policy mapping")
 	}
 	policy := &Policy{
 		InputFiles: files,

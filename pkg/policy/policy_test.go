@@ -33,7 +33,6 @@ func loadAttestation(t *testing.T, path string) *attestation.Envelope {
 func TestRegoEvaluator_Evaluate(t *testing.T) {
 	ctx, _ := test.Setup(t)
 	resolveErrorStr := "failed to resolve policy by id: policy with id non-existent-policy-id not found"
-	evalErrorStr := "no policy evaluation result"
 	TestDataPath := filepath.Join("..", "..", "test", "testdata")
 	ExampleAttestation := filepath.Join(TestDataPath, "example_attestation.json")
 
@@ -51,7 +50,6 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 		policy          *policy.Options
 		policyID        string
 		resolveErrorStr string
-		evalErrorStr    string
 	}{
 		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver, policyID: "docker-official-images"},
@@ -61,7 +59,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: true, isCanonical: true, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
-		{repo: "testdata/mock-tuf-no-rego", expectSuccess: false, isCanonical: false, resolver: defaultResolver, evalErrorStr: evalErrorStr},
+		{repo: "testdata/mock-tuf-no-rego", expectSuccess: false, isCanonical: false, resolver: defaultResolver, resolveErrorStr: "no policy file found in policy mapping"},
 	}
 
 	for _, tc := range testCases {
@@ -97,11 +95,6 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 			require.NoErrorf(t, err, "failed to resolve policy")
 			require.NotNil(t, policy, "policy should not be nil")
 			result, err := re.Evaluate(ctx, tc.resolver, policy, input)
-			if tc.evalErrorStr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.evalErrorStr)
-				return
-			}
 			require.NoErrorf(t, err, "Evaluate failed")
 
 			if tc.expectSuccess {
