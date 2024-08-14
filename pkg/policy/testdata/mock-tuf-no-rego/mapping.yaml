@@ -5,7 +5,7 @@ policies:
   - id: docker-official-images
     description: Docker Official Images
     files:
-      - path: doi/policy.not-rego
+      - path: doi/policy.yaml
 rules:
   - pattern: "^docker[.]io/library/(.*)$"
     policy-id: docker-official-images

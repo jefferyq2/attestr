@@ -33,7 +33,7 @@ func loadAttestation(t *testing.T, path string) *attestation.Envelope {
 func TestRegoEvaluator_Evaluate(t *testing.T) {
 	ctx, _ := test.Setup(t)
 	resolveErrorStr := "failed to resolve policy by id: policy with id non-existent-policy-id not found"
-	evalErrorStr := "rego_parse_error:"
+	evalErrorStr := "no policy evaluation result"
 	TestDataPath := filepath.Join("..", "..", "test", "testdata")
 	ExampleAttestation := filepath.Join(TestDataPath, "example_attestation.json")
 
