@@ -129,6 +129,8 @@ func NewClient(initialRoot []byte, tufPath, metadataSource, targetsSource string
 func (t *Client) generateTargetURI(target *metadata.TargetFiles, digest string) (string, error) {
 	targetBaseURL := ensureTrailingSlash(t.cfg.RemoteTargetsURL)
 	targetRemotePath := target.Path
+	// if PrefixTargetsWithHash is set, we need to prefix the target name with the hash and handle subdirectories
+	// similar logic to https://github.com/theupdateframework/go-tuf/blob/f95222bdd22d2ac4e5b8ed6fe912b645e213c3b5/metadata/updater/updater.go#L227-L247
 	if t.cfg.PrefixTargetsWithHash {
 		baseName := filepath.Base(targetRemotePath)
 		dirName, ok := strings.CutSuffix(targetRemotePath, "/"+baseName)

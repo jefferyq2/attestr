@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/attest/internal/util"
 )
 
 type MockTufClient struct {
@@ -25,7 +27,8 @@ func NewMockTufClient(srcPath string, dstPath string) *MockTufClient {
 }
 
 func (dc *MockTufClient) DownloadTarget(target string, filePath string) (file *TargetFile, err error) {
-	src, err := os.Open(filepath.Join(dc.srcPath, target))
+	targetPath := filepath.Join(dc.srcPath, target)
+	src, err := os.Open(targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +59,7 @@ func (dc *MockTufClient) DownloadTarget(target string, filePath string) (file *T
 		return nil, err
 	}
 
-	return &TargetFile{ActualFilePath: dstFilePath, Data: b}, nil
+	return &TargetFile{ActualFilePath: dstFilePath, TargetURI: targetPath, Data: b, Digest: util.SHA256Hex(b)}, nil
 }
 
 type MockVersionChecker struct {
