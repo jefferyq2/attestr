@@ -81,7 +81,7 @@ func NewRegistryFetcher(metadataRepo, metadataTag, targetsRepo string) *Registry
 func (d *RegistryFetcher) DownloadFile(urlPath string, maxLength int64, timeout time.Duration) ([]byte, error) {
 	d.timeout = timeout
 
-	imgRef, fileName, err := d.ParseImgRef(urlPath)
+	imgRef, fileName, err := d.parseImgRef(urlPath)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func getDataFromLayer(fileLayer v1.Layer, maxLength int64) ([]byte, error) {
 }
 
 // parseImgRef maintains the Fetcher interface by parsing a URL path to an image reference and file name.
-func (d *RegistryFetcher) ParseImgRef(urlPath string) (imgRef, fileName string, err error) {
+func (d *RegistryFetcher) parseImgRef(urlPath string) (imgRef, fileName string, err error) {
 	// Check if repo is target or metadata
 	if strings.Contains(urlPath, d.targetsRepo) {
 		// determine if the target path contains subdirectories and set image name accordingly

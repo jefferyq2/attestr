@@ -206,7 +206,7 @@ func TestParseImgRef(t *testing.T) {
 				metadataTag:  LatestTag,
 				targetsRepo:  targetsRepo,
 			}
-			imgRef, file, err := d.ParseImgRef(tc.ref)
+			imgRef, file, err := d.parseImgRef(tc.ref)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedRef, imgRef)
 			assert.Equal(t, tc.expectedFile, file)

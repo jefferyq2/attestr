@@ -144,11 +144,7 @@ func (t *Client) generateTargetURI(target *metadata.TargetFiles, digest string) 
 
 	switch fetcher := t.cfg.Fetcher.(type) {
 	case *RegistryFetcher:
-		ref, _, err := fetcher.ParseImgRef(fullURL)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse image reference: %w", err)
-		}
-		return ref, nil
+		return fmt.Sprintf("%s@sha256:%s", t.cfg.RemoteTargetsURL, digest), nil
 	case *fetcher.DefaultFetcher:
 		return fullURL, nil
 	default:

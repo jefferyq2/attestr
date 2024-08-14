@@ -86,11 +86,7 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 		return nil, err
 	}
 
-	vsaPolicy := attestation.VSAPolicy{URI: result.Summary.PolicyURI, Digest: p.Digest}
-	// if the policy URI is not set by the result summary then use the policy's target URI
-	if vsaPolicy.URI == "" {
-		vsaPolicy = attestation.VSAPolicy{URI: p.URI, Digest: p.Digest}
-	}
+	vsaPolicy := attestation.VSAPolicy{URI: result.Summary.PolicyURI, DownloadLocation: p.URI, Digest: p.Digest}
 
 	return &VerificationResult{
 		Policy:     p,
