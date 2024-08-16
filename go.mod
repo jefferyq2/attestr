@@ -24,7 +24,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go/modules/registry v0.32.0
 	github.com/theupdateframework/go-tuf/v2 v2.0.0
-	google.golang.org/api v0.191.0
+	google.golang.org/api v0.192.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -33,7 +33,7 @@ replace github.com/google/go-containerregistry => github.com/docker/go-container
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
-	cloud.google.com/go/auth v0.7.3 // indirect
+	cloud.google.com/go/auth v0.8.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.3 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	cloud.google.com/go/iam v1.1.12 // indirect
