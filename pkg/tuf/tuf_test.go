@@ -122,14 +122,14 @@ func TestDownloadTarget(t *testing.T) {
 		targets := trustedMetadata.Targets[metadata.TARGETS].Signed.Targets
 		for _, target := range targets {
 			// download target files
-			_, _, err := tufClient.DownloadTarget(target.Path, filepath.Join(tufPath, "download"))
+			_, err := tufClient.DownloadTarget(target.Path, filepath.Join(tufPath, "download"))
 			assert.NoErrorf(t, err, "Failed to download target: %v", err)
 		}
 
 		// download delegated target
 		targetInfo, err := tufClient.updater.GetTargetInfo(delegatedTargetFile)
 		assert.NoError(t, err)
-		_, _, err = tufClient.DownloadTarget(targetInfo.Path, filepath.Join(tufPath, targetInfo.Path))
+		_, err = tufClient.DownloadTarget(targetInfo.Path, filepath.Join(tufPath, targetInfo.Path))
 		assert.NoError(t, err)
 	}
 }

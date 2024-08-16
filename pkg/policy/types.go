@@ -40,6 +40,8 @@ type Policy struct {
 	Query        string
 	Mapping      *config.PolicyMapping
 	ResolvedName string
+	URI          string
+	Digest       map[string]string
 }
 
 type Input struct {

@@ -1,0 +1,11 @@
+# map repos to policies
+version: v1
+kind: policy-mapping
+policies:
+  - id: docker-official-images
+    description: Docker Official Images
+    files:
+      - path: doi/policy.yaml
+rules:
+  - pattern: "^docker[.]io/library/(.*)$"
+    policy-id: docker-official-images

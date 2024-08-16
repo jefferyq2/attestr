@@ -32,7 +32,7 @@ func loadAttestation(t *testing.T, path string) *attestation.Envelope {
 
 func TestRegoEvaluator_Evaluate(t *testing.T) {
 	ctx, _ := test.Setup(t)
-	errorStr := "failed to resolve policy by id: policy with id non-existent-policy-id not found"
+	resolveErrorStr := "failed to resolve policy by id: policy with id non-existent-policy-id not found"
 	TestDataPath := filepath.Join("..", "..", "test", "testdata")
 	ExampleAttestation := filepath.Join(TestDataPath, "example_attestation.json")
 
@@ -43,22 +43,23 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 	}
 
 	testCases := []struct {
-		repo          string
-		expectSuccess bool
-		isCanonical   bool
-		resolver      attestation.Resolver
-		policy        *policy.Options
-		policyID      string
-		errorStr      string
+		repo            string
+		expectSuccess   bool
+		isCanonical     bool
+		resolver        attestation.Resolver
+		policy          *policy.Options
+		policyID        string
+		resolveErrorStr string
 	}{
 		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow", expectSuccess: true, isCanonical: false, resolver: defaultResolver, policyID: "docker-official-images"},
-		{repo: "testdata/mock-tuf-allow", expectSuccess: false, isCanonical: false, resolver: defaultResolver, policyID: "non-existent-policy-id", errorStr: errorStr},
+		{repo: "testdata/mock-tuf-allow", expectSuccess: false, isCanonical: false, resolver: defaultResolver, policyID: "non-existent-policy-id", resolveErrorStr: resolveErrorStr},
 		{repo: "testdata/mock-tuf-deny", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-verify-sig", expectSuccess: true, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-wrong-key", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: true, isCanonical: true, resolver: defaultResolver},
 		{repo: "testdata/mock-tuf-allow-canonical", expectSuccess: false, isCanonical: false, resolver: defaultResolver},
+		{repo: "testdata/mock-tuf-no-rego", expectSuccess: false, isCanonical: false, resolver: defaultResolver, resolveErrorStr: "no policy file found in policy mapping"},
 	}
 
 	for _, tc := range testCases {
@@ -86,9 +87,9 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 			resolver, err := policy.CreateImageDetailsResolver(src)
 			require.NoError(t, err)
 			policy, err := policy.ResolvePolicy(ctx, resolver, tc.policy)
-			if tc.errorStr != "" {
+			if tc.resolveErrorStr != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errorStr)
+				assert.Contains(t, err.Error(), tc.resolveErrorStr)
 				return
 			}
 			require.NoErrorf(t, err, "failed to resolve policy")

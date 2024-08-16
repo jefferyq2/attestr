@@ -36,13 +36,13 @@ func LoadTUFMappings(tufClient tuf.Downloader, localTargetsDir string) (*PolicyM
 		return nil, fmt.Errorf("tuf client not set")
 	}
 	filename := MappingFilename
-	_, fileContents, err := tufClient.DownloadTarget(filename, filepath.Join(localTargetsDir, filename))
+	file, err := tufClient.DownloadTarget(filename, filepath.Join(localTargetsDir, filename))
 	if err != nil {
 		return nil, fmt.Errorf("failed to download policy mapping file %s: %w", filename, err)
 	}
 	mappings := &policyMappingsFile{}
 
-	err = yaml.Unmarshal(fileContents, mappings)
+	err = yaml.Unmarshal(file.Data, mappings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal policy mapping file %s: %w", filename, err)
 	}

@@ -16,7 +16,7 @@ type VSAPredicate struct {
 	TimeVerified       string                `json:"timeVerified"`
 	ResourceURI        string                `json:"resourceUri"`
 	Policy             VSAPolicy             `json:"policy"`
-	InputAttestations  []VSAInputAttestation `json:"inputAttestations"`
+	InputAttestations  []VSAInputAttestation `json:"inputAttestations,omitempty"`
 	VerificationResult string                `json:"verificationResult"`
 	VerifiedLevels     []string              `json:"verifiedLevels"`
 }
@@ -26,7 +26,9 @@ type VSAVerifier struct {
 }
 
 type VSAPolicy struct {
-	URI string `json:"uri"`
+	URI              string            `json:"uri,omitempty"`
+	Digest           map[string]string `json:"digest"`
+	DownloadLocation string            `json:"downloadLocation,omitempty"`
 }
 
 type VSAInputAttestation struct {
