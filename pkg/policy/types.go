@@ -45,9 +45,13 @@ type Policy struct {
 }
 
 type Input struct {
-	Digest      string `json:"digest"`
-	PURL        string `json:"purl"`
-	IsCanonical bool   `json:"isCanonical"`
+	Digest         string `json:"digest"`
+	PURL           string `json:"purl"`
+	Tag            string `json:"tag,omitempty"`
+	Domain         string `json:"domain"`
+	NormalizedName string `json:"normalized_name"`
+	FamiliarName   string `json:"familiar_name"`
+	Platform       string `json:"platform"`
 }
 
 type File struct {

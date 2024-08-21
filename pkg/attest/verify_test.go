@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/distribution/reference"
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/pkg/attestation"
 	"github.com/docker/attest/pkg/config"
@@ -98,7 +99,7 @@ func TestVSA(t *testing.T) {
 
 	if assert.NotNil(t, results.Input) {
 		assert.Equal(t, "sha256:da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620", results.Input.Digest)
-		assert.False(t, results.Input.IsCanonical)
+		assert.NotNil(t, results.Input.Tag)
 	}
 
 	assert.Equal(t, intoto.StatementInTotoV01, results.VSA.Type)
@@ -187,6 +188,7 @@ func TestSignVerify(t *testing.T) {
 		{name: "no tl", signTL: false, policyDir: PassPolicyDir},
 		{name: "mirror", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "mirror.org/library/test-image:test"},
 		{name: "mirror no match", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "incorrect.org/library/test-image:test", expectError: true},
+		{name: "verify inputs", signTL: false, policyDir: InputsPolicyDir},
 	}
 
 	attIdx, err := oci.IndexFromPath(test.UnsignedTestImage)
@@ -226,7 +228,10 @@ func TestSignVerify(t *testing.T) {
 			assert.Equal(t, OutcomeSuccess, results.Outcome)
 			platform, err := oci.ParsePlatform(LinuxAMD64)
 			require.NoError(t, err)
-			expectedPURL, _, err := oci.RefToPURL(attIdx.Name, platform)
+
+			ref, err := reference.ParseNormalizedNamed(attIdx.Name)
+			require.NoError(t, err)
+			expectedPURL, _, err := oci.RefToPURL(ref, platform)
 			require.NoError(t, err)
 			assert.Equal(t, expectedPURL, results.Input.PURL)
 		})
