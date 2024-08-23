@@ -3,6 +3,8 @@ package attest
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
+	"github.com/docker/attest/pkg/tuf"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 )
 
@@ -20,13 +23,20 @@ func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (resu
 	if err != nil {
 		return nil, fmt.Errorf("failed to create image details resolver: %w", err)
 	}
-	if opts.AttestationStyle == "" {
-		opts.AttestationStyle = config.AttestationStyleReferrers
+	err = populateDefaultOptions(opts)
+	if err != nil {
+		return nil, err
 	}
-	if opts.ReferrersRepo != "" && opts.AttestationStyle != config.AttestationStyleReferrers {
-		return nil, fmt.Errorf("referrers repo specified but attestation source not set to referrers")
+
+	tufClient, ok := tuf.GetDownloader(ctx)
+	if !ok {
+		tufClient, err = tuf.NewClient(opts.TUFClientOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create TUF client: %w", err)
+		}
 	}
-	pctx, err := policy.ResolvePolicy(ctx, detailsResolver, opts)
+
+	pctx, err := policy.ResolvePolicy(ctx, tufClient, detailsResolver, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve policy: %w", err)
 	}
@@ -58,6 +68,36 @@ func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (resu
 		return nil, fmt.Errorf("failed to evaluate policy: %w", err)
 	}
 	return result, nil
+}
+
+func populateDefaultOptions(opts *policy.Options) (err error) {
+	if opts.LocalTargetsDir == "" {
+		opts.LocalTargetsDir, err = defaultLocalTargetsDir()
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.TUFClientOptions == nil {
+		opts.TUFClientOptions = tuf.NewDockerDefaultClientOptions(opts.LocalTargetsDir)
+	}
+
+	if opts.AttestationStyle == "" {
+		opts.AttestationStyle = config.AttestationStyleReferrers
+	}
+	if opts.ReferrersRepo != "" && opts.AttestationStyle != config.AttestationStyleReferrers {
+		return fmt.Errorf("referrers repo specified but attestation source not set to referrers")
+	}
+
+	return nil
+}
+
+func defaultLocalTargetsDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+	return filepath.Join(homeDir, ".docker", "tuf"), nil
 }
 
 func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.Result) (*VerificationResult, error) {

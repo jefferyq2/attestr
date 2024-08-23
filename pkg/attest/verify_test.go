@@ -14,6 +14,7 @@ import (
 	"github.com/docker/attest/pkg/config"
 	"github.com/docker/attest/pkg/oci"
 	"github.com/docker/attest/pkg/policy"
+	"github.com/docker/attest/pkg/tuf"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,7 @@ func TestVerifyAttestations(t *testing.T) {
 func TestVSA(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
+	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
@@ -121,6 +123,7 @@ func TestVSA(t *testing.T) {
 func TestVerificationFailure(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
+	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
@@ -173,21 +176,23 @@ func TestVerificationFailure(t *testing.T) {
 func TestSignVerify(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
+	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
 	testCases := []struct {
-		name        string
-		signTL      bool
-		policyDir   string
-		imageName   string
-		expectError bool
+		name      string
+		signTL    bool
+		policyDir string
+		imageName string
+
+		expectedNonSuccess Outcome
 	}{
 		{name: "happy path", signTL: true, policyDir: PassNoTLPolicyDir},
 		{name: "sign tl, verify no tl", signTL: true, policyDir: PassPolicyDir},
 		{name: "no tl", signTL: false, policyDir: PassPolicyDir},
 		{name: "mirror", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "mirror.org/library/test-image:test"},
-		{name: "mirror no match", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "incorrect.org/library/test-image:test", expectError: true},
+		{name: "mirror no match", signTL: true, policyDir: PassMirrorPolicyDir, imageName: "incorrect.org/library/test-image:test", expectedNonSuccess: OutcomeNoPolicy},
 		{name: "verify inputs", signTL: false, policyDir: InputsPolicyDir},
 	}
 
@@ -220,11 +225,11 @@ func TestSignVerify(t *testing.T) {
 				LocalPolicyDir: tc.policyDir,
 			}
 			results, err := Verify(ctx, spec, policyOpts)
-			if tc.expectError {
-				require.Error(t, err)
+			require.NoError(t, err)
+			if tc.expectedNonSuccess != "" {
+				assert.Equal(t, tc.expectedNonSuccess, results.Outcome)
 				return
 			}
-			require.NoError(t, err)
 			assert.Equal(t, OutcomeSuccess, results.Outcome)
 			platform, err := oci.ParsePlatform(LinuxAMD64)
 			require.NoError(t, err)
@@ -234,6 +239,70 @@ func TestSignVerify(t *testing.T) {
 			expectedPURL, _, err := oci.RefToPURL(ref, platform)
 			require.NoError(t, err)
 			assert.Equal(t, expectedPURL, results.Input.PURL)
+		})
+	}
+}
+
+func TestDefaultOptions(t *testing.T) {
+	testCases := []struct {
+		name             string
+		tufOpts          *tuf.ClientOptions
+		localTargetsDir  string
+		attestationStyle config.AttestationStyle
+		referrersRepo    string
+		expectedError    string
+	}{
+		{name: "empty"},
+		{name: "tufClient provided", tufOpts: &tuf.ClientOptions{MetadataSource: "a", TargetsSource: "b"}},
+		{name: "localTargetsDir provided", localTargetsDir: test.CreateTempDir(t, "", TestTempDir)},
+		{name: "attestationStyle provided", attestationStyle: config.AttestationStyleAttached},
+		{name: "referrersRepo provided", referrersRepo: "referrers"},
+		{name: "referrersRepo provided with attached", referrersRepo: "referrers", attestationStyle: config.AttestationStyleAttached, expectedError: "referrers repo specified but attestation source not set to referrers"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defaultTargets, err := defaultLocalTargetsDir()
+			require.NoError(t, err)
+
+			opts := &policy.Options{
+				TUFClientOptions: tc.tufOpts,
+				LocalTargetsDir:  tc.localTargetsDir,
+				AttestationStyle: tc.attestationStyle,
+				ReferrersRepo:    tc.referrersRepo,
+			}
+
+			err = populateDefaultOptions(opts)
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				assert.Equal(t, tc.expectedError, err.Error())
+				return
+			}
+
+			require.NoError(t, err)
+
+			if tc.localTargetsDir != "" {
+				assert.Equal(t, tc.localTargetsDir, opts.LocalTargetsDir)
+			} else {
+				assert.Equal(t, defaultTargets, opts.LocalTargetsDir)
+			}
+
+			if tc.attestationStyle != "" {
+				assert.Equal(t, tc.attestationStyle, opts.AttestationStyle)
+			} else {
+				assert.Equal(t, config.AttestationStyleReferrers, opts.AttestationStyle)
+			}
+
+			if tc.tufOpts != nil {
+				assert.Equal(t, tc.tufOpts, opts.TUFClientOptions)
+			} else {
+				assert.NotNil(t, opts.TUFClientOptions)
+			}
+
+			if tc.referrersRepo != "" {
+				assert.Equal(t, tc.referrersRepo, opts.ReferrersRepo)
+			} else {
+				assert.Empty(t, opts.ReferrersRepo)
+			}
 		})
 	}
 }
