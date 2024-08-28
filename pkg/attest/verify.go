@@ -17,26 +17,41 @@ import (
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 )
 
-func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (result *VerificationResult, err error) {
-	// so that we can resolve mapping from the image name earlier
-	detailsResolver, err := policy.CreateImageDetailsResolver(src)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create image details resolver: %w", err)
-	}
-	err = populateDefaultOptions(opts)
+type Verifier interface {
+	Verify(ctx context.Context, src *oci.ImageSpec) (result *VerificationResult, err error)
+}
+
+type tufVerifier struct {
+	opts      *policy.Options
+	tufClient tuf.Downloader
+}
+
+func NewVerifier(opts *policy.Options) (Verifier, error) {
+	err := populateDefaultOptions(opts)
 	if err != nil {
 		return nil, err
 	}
-
-	tufClient, ok := tuf.GetDownloader(ctx)
-	if !ok {
+	var tufClient tuf.Downloader
+	if !opts.DisableTUF {
 		tufClient, err = tuf.NewClient(opts.TUFClientOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create TUF client: %w", err)
 		}
 	}
+	return &tufVerifier{
+		opts:      opts,
+		tufClient: tufClient,
+	}, nil
+}
 
-	pctx, err := policy.ResolvePolicy(ctx, tufClient, detailsResolver, opts)
+func (v *tufVerifier) Verify(ctx context.Context, src *oci.ImageSpec) (result *VerificationResult, err error) {
+	// so that we can resolve mapping from the image name earlier
+	detailsResolver, err := policy.CreateImageDetailsResolver(src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create image details resolver: %w", err)
+	}
+
+	pctx, err := policy.ResolvePolicy(ctx, v.tufClient, detailsResolver, v.opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve policy: %w", err)
 	}
@@ -47,14 +62,14 @@ func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (resu
 		}, nil
 	}
 	// this is overriding the mapping with a referrers config. Useful for testing if nothing else
-	if opts.ReferrersRepo != "" {
+	if v.opts.ReferrersRepo != "" {
 		pctx.Mapping.Attestations = &config.AttestationConfig{
-			Repo:  opts.ReferrersRepo,
+			Repo:  v.opts.ReferrersRepo,
 			Style: config.AttestationStyleReferrers,
 		}
-	} else if opts.AttestationStyle == config.AttestationStyleAttached {
+	} else if v.opts.AttestationStyle == config.AttestationStyleAttached {
 		pctx.Mapping.Attestations = &config.AttestationConfig{
-			Repo:  opts.ReferrersRepo,
+			Repo:  v.opts.ReferrersRepo,
 			Style: config.AttestationStyleAttached,
 		}
 	}
@@ -70,15 +85,27 @@ func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (resu
 	return result, nil
 }
 
+func Verify(ctx context.Context, src *oci.ImageSpec, opts *policy.Options) (result *VerificationResult, err error) {
+	verifier, err := NewVerifier(opts)
+	if err != nil {
+		return nil, err
+	}
+	return verifier.Verify(ctx, src)
+}
+
 func populateDefaultOptions(opts *policy.Options) (err error) {
+	if opts.LocalPolicyDir == "" && opts.DisableTUF {
+		return fmt.Errorf("local policy dir must be set if not using TUF")
+	}
 	if opts.LocalTargetsDir == "" {
 		opts.LocalTargetsDir, err = defaultLocalTargetsDir()
 		if err != nil {
 			return err
 		}
 	}
-
-	if opts.TUFClientOptions == nil {
+	if opts.DisableTUF && opts.TUFClientOptions != nil {
+		return fmt.Errorf("TUF client options set but TUF disabled")
+	} else if opts.TUFClientOptions == nil && !opts.DisableTUF {
 		opts.TUFClientOptions = tuf.NewDockerDefaultClientOptions(opts.LocalTargetsDir)
 	}
 
@@ -88,7 +115,6 @@ func populateDefaultOptions(opts *policy.Options) (err error) {
 	if opts.ReferrersRepo != "" && opts.AttestationStyle != config.AttestationStyleReferrers {
 		return fmt.Errorf("referrers repo specified but attestation source not set to referrers")
 	}
-
 	return nil
 }
 

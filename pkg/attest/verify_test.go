@@ -70,7 +70,6 @@ func TestVerifyAttestations(t *testing.T) {
 func TestVSA(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
-	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
@@ -93,6 +92,7 @@ func TestVSA(t *testing.T) {
 	policyOpts := &policy.Options{
 		LocalPolicyDir:   PassPolicyDir,
 		AttestationStyle: config.AttestationStyleAttached,
+		DisableTUF:       true,
 	}
 	results, err := Verify(ctx, spec, policyOpts)
 	require.NoError(t, err)
@@ -123,7 +123,6 @@ func TestVSA(t *testing.T) {
 func TestVerificationFailure(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
-	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
@@ -146,6 +145,7 @@ func TestVerificationFailure(t *testing.T) {
 	policyOpts := &policy.Options{
 		LocalPolicyDir:   FailPolicyDir,
 		AttestationStyle: config.AttestationStyleAttached,
+		DisableTUF:       true,
 	}
 	results, err := Verify(ctx, spec, policyOpts)
 	require.NoError(t, err)
@@ -176,16 +176,14 @@ func TestVerificationFailure(t *testing.T) {
 func TestSignVerify(t *testing.T) {
 	ctx, signer := test.Setup(t)
 	ctx = policy.WithPolicyEvaluator(ctx, policy.NewRegoEvaluator(true))
-	ctx = tuf.WithDownloader(ctx, tuf.NewMockTufClient(EmptyPolicyDir, test.CreateTempDir(t, "", "tuf-dest")))
 	// setup an image with signed attestations
 	outputLayout := test.CreateTempDir(t, "", TestTempDir)
 
 	testCases := []struct {
-		name      string
-		signTL    bool
-		policyDir string
-		imageName string
-
+		name               string
+		signTL             bool
+		policyDir          string
+		imageName          string
 		expectedNonSuccess Outcome
 	}{
 		{name: "happy path", signTL: true, policyDir: PassNoTLPolicyDir},
@@ -223,6 +221,7 @@ func TestSignVerify(t *testing.T) {
 
 			policyOpts := &policy.Options{
 				LocalPolicyDir: tc.policyDir,
+				DisableTUF:     true,
 			}
 			results, err := Verify(ctx, spec, policyOpts)
 			require.NoError(t, err)
@@ -251,6 +250,8 @@ func TestDefaultOptions(t *testing.T) {
 		attestationStyle config.AttestationStyle
 		referrersRepo    string
 		expectedError    string
+		disableTuf       bool
+		localPolicyDir   string
 	}{
 		{name: "empty"},
 		{name: "tufClient provided", tufOpts: &tuf.ClientOptions{MetadataSource: "a", TargetsSource: "b"}},
@@ -258,6 +259,8 @@ func TestDefaultOptions(t *testing.T) {
 		{name: "attestationStyle provided", attestationStyle: config.AttestationStyleAttached},
 		{name: "referrersRepo provided", referrersRepo: "referrers"},
 		{name: "referrersRepo provided with attached", referrersRepo: "referrers", attestationStyle: config.AttestationStyleAttached, expectedError: "referrers repo specified but attestation source not set to referrers"},
+		{name: "tuf disabled and no local-policy-dir", disableTuf: true, expectedError: "local policy dir must be set if not using TUF"},
+		{name: "tuf disabled but options set", disableTuf: true, tufOpts: &tuf.ClientOptions{MetadataSource: "a", TargetsSource: "b"}, localPolicyDir: "foo", expectedError: "TUF client options set but TUF disabled"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -269,6 +272,8 @@ func TestDefaultOptions(t *testing.T) {
 				LocalTargetsDir:  tc.localTargetsDir,
 				AttestationStyle: tc.attestationStyle,
 				ReferrersRepo:    tc.referrersRepo,
+				DisableTUF:       tc.disableTuf,
+				LocalPolicyDir:   tc.localPolicyDir,
 			}
 
 			err = populateDefaultOptions(opts)
