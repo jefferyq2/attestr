@@ -41,7 +41,7 @@ func TestResolvePolicy(t *testing.T) {
 			opts := &policy.Options{}
 			tempDir := test.CreateTempDir(t, "", "tuf-dest")
 			if !tc.DisableTUF {
-				tufClient = tuf.NewMockTufClient(tufPolicyPath, tempDir)
+				tufClient = tuf.NewMockTufClient(tufPolicyPath)
 			}
 			if tc.policyID != "" {
 				opts.PolicyID = tc.policyID
