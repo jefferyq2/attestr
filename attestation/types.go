@@ -7,6 +7,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	v02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	slsav1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -98,6 +99,8 @@ type Options struct {
 func DSSEMediaType(predicateType string) (string, error) {
 	var predicateName string
 	switch predicateType {
+	case slsav1.PredicateSLSAProvenance:
+		predicateName = "provenance"
 	case v02.PredicateSLSAProvenance:
 		predicateName = "provenance"
 	case intoto.PredicateSPDX:
