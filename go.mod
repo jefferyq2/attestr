@@ -20,7 +20,7 @@ require (
 	github.com/sigstore/cosign/v2 v2.4.0
 	github.com/sigstore/rekor v1.3.6
 	github.com/sigstore/sigstore/pkg/signature/kms/aws v1.8.9
-	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.8
+	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.9
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go/modules/registry v0.33.0
 	github.com/theupdateframework/go-tuf/v2 v2.0.0
@@ -37,7 +37,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	cloud.google.com/go/iam v1.1.13 // indirect
-	cloud.google.com/go/kms v1.18.5 // indirect
+	cloud.google.com/go/kms v1.19.0 // indirect
 	cloud.google.com/go/longrunning v0.5.12 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
