@@ -2,6 +2,7 @@ package policy_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/oci"
 	"github.com/docker/attest/policy"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -172,4 +175,210 @@ func TestCreateAttestationResolver(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVerifySubject(t *testing.T) {
+	ctx, _ := test.Setup(t)
+	defaultResolver := attestation.MockResolver{}
+	testCases := []struct {
+		name        string
+		subject     []intoto.Subject
+		img         string
+		expectError bool
+		digest      string
+	}{
+		{
+			name: "library short",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "alpine",
+		},
+		{
+			name: "with domain and namespace",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/docker.io/library/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "alpine",
+		},
+		{
+			name: "with library",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/library/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "alpine",
+		},
+		{
+			name: "library short with tag",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "alpine:foo",
+		},
+		{
+			name: "library with namespace",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "library/alpine:foo",
+		},
+		{
+			name: "library with domain",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img: "docker.io/library/alpine:foo",
+		},
+		{
+			name: "domain mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "ecr.io/library/alpine:foo",
+			expectError: true,
+		},
+		{
+			name: "type mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:node/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "alpine",
+			expectError: true,
+		},
+		{
+			name: "name mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "library/debian:latest",
+			expectError: true,
+		},
+		{
+			name: "namespace mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "unsupported/alpine:latest",
+			expectError: true,
+		},
+		{
+			name: "digest mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "alpine",
+			digest:      "1234",
+			expectError: true,
+		},
+		{
+			name: "platform mismatch",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Farm64",
+				},
+			},
+			img:         "alpine",
+			expectError: true,
+		},
+		{
+			name: "malformed purl",
+			subject: []intoto.Subject{
+				{
+					Name: "not-a-purl",
+				},
+			},
+			img:         "alpine",
+			expectError: true,
+		},
+		{
+			name: "malformed image in valid purl",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine,bar@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "alpine-broken",
+			expectError: true,
+		},
+		{
+			name: "malformed image name",
+			subject: []intoto.Subject{
+				{
+					Name: "pkg:docker/alpine@latest?platform=linux%2Famd64",
+				},
+			},
+			img:         "foo bar",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defaultResolver.Image = tc.img
+			// digest from mock resolver
+			tc.subject[0].Digest = map[string]string{"sha256": "da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620"}
+			if tc.digest != "" {
+				tc.subject[0].Digest = map[string]string{"sha256": tc.digest}
+			}
+			err := policy.VerifySubject(ctx, tc.subject, defaultResolver)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+	defaultResolver.Image = "alpine"
+	subject := []intoto.Subject{
+		{
+			Name:   "pkg:docker/alpine@latest?platform=linux%2Famd64",
+			Digest: map[string]string{"sha256": "da8b190665956ea07890a0273e2a9c96bfe291662f08e2860e868eef69c34620"},
+		},
+	}
+
+	// error getting descriptor
+	defaultResolver.DescriptorFn = func() (*v1.Descriptor, error) {
+		return nil, fmt.Errorf("error")
+	}
+	err := policy.VerifySubject(ctx, subject, defaultResolver)
+	require.Error(t, err)
+
+	// error getting platform
+	defaultResolver.DescriptorFn = nil
+	defaultResolver.PlatformFn = func() (*v1.Platform, error) {
+		return nil, fmt.Errorf("error")
+	}
+	err = policy.VerifySubject(ctx, subject, defaultResolver)
+	require.Error(t, err)
+
+	// error getting image name
+	defaultResolver.PlatformFn = nil
+	defaultResolver.Image = ""
+	defaultResolver.ImangeNameFn = func() (string, error) {
+		return "", fmt.Errorf("error")
+	}
+	err = policy.VerifySubject(ctx, subject, defaultResolver)
+	require.Error(t, err)
 }
