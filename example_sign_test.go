@@ -31,7 +31,7 @@ func ExampleSignStatements_remote() {
 
 	// load image index with unsigned attestation-manifests
 	ref := "docker/image-signer-verifier:latest"
-	attIdx, err := oci.IndexFromRemote(ref)
+	attIdx, err := oci.IndexFromRemote(context.Background(), ref)
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func ExampleSignStatements_remote() {
 	}
 
 	// push image index with signed attestation-manifests
-	err = oci.PushIndexToRegistry(signedIndex, ref)
+	err = oci.PushIndexToRegistry(context.Background(), signedIndex, ref)
 	if err != nil {
 		panic(err)
 	}
