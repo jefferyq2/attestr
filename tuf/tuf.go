@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -46,8 +48,9 @@ type Downloader interface {
 }
 
 type Client struct {
-	updater *updater.Updater
-	cfg     *config.UpdaterConfig
+	updater    *updater.Updater
+	cfg        *config.UpdaterConfig
+	pathPrefix string
 }
 
 type TargetFile struct {
@@ -57,26 +60,41 @@ type TargetFile struct {
 	Data           []byte
 }
 
+// ClientOptions contains the options for creating a new TUF client.
 type ClientOptions struct {
-	InitialRoot    []byte
-	Path           string
+	// InitialRoot is the initial root.json file to use for the TUF client.
+	InitialRoot []byte
+	// LocalStorageDir is the directory where the TUF client will cache any downloaded metadata and target files.
+	LocalStorageDir string
+	// MetadataSource is the source of the metadata files.
 	MetadataSource string
-	TargetsSource  string
+	// TargetsSource is the source of the target files.
+	TargetsSource string
+	// VersionChecker checks if the current version of this library meets the constraints from the TUF repo.
 	VersionChecker VersionChecker
+	// PathPrefix is the prefix to prepend to all target paths before downloading.
+	PathPrefix string
 }
 
 func NewDockerDefaultClientOptions(tufPath string) *ClientOptions {
 	return &ClientOptions{
-		InitialRoot:    DockerTUFRootDefault.Data,
-		Path:           tufPath,
-		MetadataSource: defaultMetadataSource,
-		TargetsSource:  defaultTargetsSource,
-		VersionChecker: NewDefaultVersionChecker(),
+		InitialRoot:     DockerTUFRootDefault.Data,
+		LocalStorageDir: tufPath,
+		MetadataSource:  defaultMetadataSource,
+		TargetsSource:   defaultTargetsSource,
+		VersionChecker:  NewDefaultVersionChecker(),
 	}
 }
 
+var validPathPrefix = regexp.MustCompile("^[a-z0-9_-]*$")
+
 // NewClient creates a new TUF client.
 func NewClient(ctx context.Context, opts *ClientOptions) (*Client, error) {
+	pathPrefix := opts.PathPrefix
+	if !validPathPrefix.MatchString(pathPrefix) {
+		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
+	}
+
 	var tufSource Source
 	if strings.HasPrefix(opts.MetadataSource, "https://") || strings.HasPrefix(opts.MetadataSource, "http://") {
 		tufSource = HTTPSource
@@ -87,7 +105,7 @@ func NewClient(ctx context.Context, opts *ClientOptions) (*Client, error) {
 	tufRootDigest := util.SHA256Hex(opts.InitialRoot)
 
 	// create a directory for each initial root.json
-	metadataPath := filepath.Join(opts.Path, tufRootDigest)
+	metadataPath := filepath.Join(opts.LocalStorageDir, tufRootDigest)
 	err := os.MkdirAll(metadataPath, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create directory '%s': %w", metadataPath, err)
@@ -139,8 +157,9 @@ func NewClient(ctx context.Context, opts *ClientOptions) (*Client, error) {
 	}
 
 	client := &Client{
-		updater: up,
-		cfg:     cfg,
+		pathPrefix: pathPrefix,
+		updater:    up,
+		cfg:        cfg,
 	}
 
 	err = opts.VersionChecker.CheckVersion(client)
@@ -181,6 +200,9 @@ func (t *Client) generateTargetURI(target *metadata.TargetFiles, digest string) 
 // information, verifies if the target is already cached, and if it is not cached,
 // downloads the target file.
 func (t *Client) DownloadTarget(target string, filePath string) (file *TargetFile, err error) {
+	// before we do anything, prepend the path prefix to the target
+	target = path.Join(t.pathPrefix, target)
+
 	// search if the desired target is available
 	targetInfo, err := t.updater.GetTargetInfo(target)
 	if err != nil {
