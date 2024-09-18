@@ -7,24 +7,22 @@ import (
 	_ "embed"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/docker/attest/attestation"
 	"github.com/docker/attest/signerverifier"
-	"github.com/docker/attest/tlog"
 	"github.com/docker/attest/useragent"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
 
 const (
-	UseMockTL  = true
 	UseMockKMS = true
 
 	AWSRegion    = "us-east-1"
@@ -60,15 +58,7 @@ func GetMockSigner(_ context.Context) (dsse.SignerVerifier, error) {
 }
 
 func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
-	var tl tlog.TL
-	if UseMockTL {
-		tl = tlog.GetMockTL()
-	} else {
-		tl = &tlog.RekorTL{}
-	}
-
-	ctx := tlog.WithTL(context.Background(), tl)
-
+	ctx := context.Background()
 	var signer dsse.SignerVerifier
 	var err error
 	if UseMockKMS {
@@ -87,6 +77,7 @@ func Setup(t *testing.T) (context.Context, dsse.SignerVerifier) {
 }
 
 func NewLocalRegistry(ctx context.Context, options ...registry.Option) *httptest.Server {
+	options = append(options, registry.Logger(log.New(io.Discard, "", log.LstdFlags)))
 	regHandler := registry.New(options...)
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check the user agent
@@ -99,7 +90,7 @@ func NewLocalRegistry(ctx context.Context, options ...registry.Option) *httptest
 	}))
 }
 
-func publicKeyToPEM(pubKey crypto.PublicKey) (string, error) {
+func PublicKeyToPEM(pubKey crypto.PublicKey) (string, error) {
 	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return "", err
@@ -111,25 +102,4 @@ func publicKeyToPEM(pubKey crypto.PublicKey) (string, error) {
 	}
 
 	return string(pem.EncodeToMemory(pemBlock)), nil
-}
-
-// LoadKeyMetadata loads the key metadata for the given signer verifier.
-func GenKeyMetadata(sv dsse.SignerVerifier) (*attestation.KeyMetadata, error) {
-	pub := sv.Public()
-	pem, err := publicKeyToPEM(pub)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert public key to PEM: %w", err)
-	}
-	id, err := sv.KeyID()
-	if err != nil {
-		return nil, err
-	}
-
-	return &attestation.KeyMetadata{
-		ID:            id,
-		Status:        "active",
-		SigningFormat: "dssev1",
-		From:          time.Now(),
-		PEM:           pem,
-	}, nil
 }

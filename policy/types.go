@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/docker/attest/attestation"
 	"github.com/docker/attest/config"
 	"github.com/docker/attest/tuf"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
@@ -27,14 +28,15 @@ type Result struct {
 }
 
 type Options struct {
-	TUFClientOptions *tuf.ClientOptions
-	DisableTUF       bool
-	LocalTargetsDir  string
-	LocalPolicyDir   string
-	PolicyID         string
-	ReferrersRepo    string
-	AttestationStyle config.AttestationStyle
-	Debug            bool
+	TUFClientOptions    *tuf.ClientOptions
+	DisableTUF          bool
+	LocalTargetsDir     string
+	LocalPolicyDir      string
+	PolicyID            string
+	ReferrersRepo       string
+	AttestationStyle    config.AttestationStyle
+	Debug               bool
+	AttestationVerifier attestation.Verifier
 }
 
 type Policy struct {

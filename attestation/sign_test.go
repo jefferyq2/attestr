@@ -1,6 +1,7 @@
 package attestation_test
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/attest/internal/test"
 	"github.com/docker/attest/oci"
 	"github.com/docker/attest/signerverifier"
+	"github.com/docker/attest/tlog"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/static"
@@ -35,7 +37,10 @@ func TestSignVerifyAttestation(t *testing.T) {
 
 	payload, err := json.Marshal(stmt)
 	require.NoError(t, err)
-	opts := &attestation.SigningOptions{}
+	tl := tlog.GetMockTL()
+	opts := &attestation.SigningOptions{
+		TransparencyLog: tl,
+	}
 	env, err := attestation.SignDSSE(ctx, payload, signer, opts)
 	require.NoError(t, err)
 
@@ -146,8 +151,17 @@ func TestSignVerifyAttestation(t *testing.T) {
 			opts := &attestation.VerifyOptions{
 				Keys: attestation.Keys{keyMeta},
 			}
-			_, err = attestation.VerifyDSSE(ctx, deserializedEnv, opts)
+			getTL := func(_ context.Context, opts *attestation.VerifyOptions) (tlog.TransparencyLog, error) {
+				if opts.SkipTL {
+					return nil, nil
+				}
+				return tl, nil
+			}
+			verifier, err := attestation.NewVerfier(attestation.WithLogVerifierFactory(getTL))
+			require.NoError(t, err)
+			_, err = attestation.VerifyDSSE(ctx, verifier, deserializedEnv, opts)
 			if tc.expectedError != "" {
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedError)
 			} else {
 				assert.NoError(t, err)
@@ -222,7 +236,6 @@ func TestSimpleStatementSigning(t *testing.T) {
 		{"replaced", true},
 		{"not replaced", false},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := &attestation.SigningOptions{}

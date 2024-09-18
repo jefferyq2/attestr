@@ -52,42 +52,31 @@ func TestUploadAndVerifyLogEntry(t *testing.T) {
 	sig, err := signer.Sign(context.Background(), hash)
 	assert.NoError(t, err)
 
-	var tl TL
+	var tl TransparencyLog
 	if UseMockTL {
-		tl = &MockTL{
-			UploadLogEntryFunc: func(_ context.Context, _ string, _ []byte, _ []byte, _ dsse.SignerVerifier) ([]byte, error) {
-				return []byte(TestEntry), nil
+		tl = &MockTransparencyLog{
+			UploadLogEntryFunc: func(_ context.Context, _ string, _ []byte, _ []byte, _ dsse.SignerVerifier) (*DockerTLExtension, error) {
+				return &DockerTLExtension{
+					Kind: RekorTLExtKind,
+					Data: []byte(TestEntry),
+				}, nil
 			},
-			VerifyLogEntryFunc: func(_ context.Context, _ []byte) (time.Time, error) {
+			VerifyLogEntryFunc: func(_ context.Context, _ *DockerTLExtension, _, _ []byte) (time.Time, error) {
 				return time.Time{}, nil
-			},
-			VerifyEntryPayloadFunc: func(_, _, _ []byte) error {
-				return nil
 			},
 		}
 	} else {
-		tl = &RekorTL{}
+		assert.NoError(t, err)
 	}
 
 	// test upload log entry
-	ctx := WithTL(context.Background(), tl)
-	entry, err := tl.UploadLogEntry(ctx, "test", payload, sig, signer)
+	ctx := context.Background()
+	entry, err := tl.UploadEntry(ctx, "test", payload, sig, signer)
 	assert.NoError(t, err)
 
-	// test verify log entry
-	_, err = tl.VerifyLogEntry(ctx, entry)
-	assert.NoError(t, err)
-
-	// verify TL entry payload
+	// verify TL entry
 	ecPub, err := x509.MarshalPKIXPublicKey(signer.Public())
 	assert.NoError(t, err)
-	err = tl.VerifyEntryPayload(entry, payload, ecPub)
-	assert.NoError(t, err)
-}
-
-func TestVerifyEntryPayload(t *testing.T) {
-	tl := &RekorTL{}
-	p, _ := pem.Decode([]byte(TestPublicKey))
-	err := tl.VerifyEntryPayload([]byte(TestEntry), []byte(TestPayload), p.Bytes)
+	_, err = tl.VerifyEntry(ctx, entry, payload, ecPub)
 	assert.NoError(t, err)
 }

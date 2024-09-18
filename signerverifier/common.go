@@ -9,52 +9,17 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 
-	"github.com/docker/attest/internal/util"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 )
-
-type ECDSA256SignerVerifier struct {
-	crypto.Signer
-}
-
-// implement keyid function.
-func (s *ECDSA256SignerVerifier) KeyID() (string, error) {
-	keyid, err := KeyID(s.Signer.Public())
-	if err != nil {
-		return "", fmt.Errorf("error getting keyid: %w", err)
-	}
-	return keyid, nil
-}
-
-func (s *ECDSA256SignerVerifier) Public() crypto.PublicKey {
-	return s.Signer.Public()
-}
-
-func (s *ECDSA256SignerVerifier) Sign(_ context.Context, data []byte) ([]byte, error) {
-	return s.Signer.Sign(rand.Reader, data, crypto.SHA256)
-}
-
-func (s *ECDSA256SignerVerifier) Verify(_ context.Context, data []byte, sig []byte) error {
-	pub, ok := s.Signer.Public().(*ecdsa.PublicKey)
-	if !ok {
-		return fmt.Errorf("public key is not ecdsa")
-	}
-	ok = ecdsa.VerifyASN1(pub, util.SHA256(data), sig)
-	if !ok {
-		return fmt.Errorf("payload signature is not valid")
-	}
-	return nil
-}
 
 func LoadKeyPair(priv []byte) (dsse.SignerVerifier, error) {
 	privateKey, err := parsePriv(priv)
 	if err != nil {
 		return nil, err
 	}
-	return &ECDSA256SignerVerifier{
-		Signer: privateKey,
-	}, nil
+	return NewECDSASignerVerifier(privateKey)
 }
 
 func parsePriv(privkeyBytes []byte) (*ecdsa.PrivateKey, error) {
@@ -78,7 +43,26 @@ func GenKeyPair() (dsse.SignerVerifier, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ECDSA256SignerVerifier{
-		Signer: signer,
-	}, nil
+	return NewECDSASignerVerifier(signer)
+}
+
+// ensure it implements crypto.Signer.
+var _ crypto.Signer = (*cryptoSignerWrapper)(nil)
+
+type cryptoSignerWrapper struct {
+	sv dsse.SignerVerifier
+}
+
+// Public implements crypto.Signer.
+func (c *cryptoSignerWrapper) Public() crypto.PublicKey {
+	return c.sv.Public()
+}
+
+// Sign implements crypto.Signer.
+func (c *cryptoSignerWrapper) Sign(_ io.Reader, digest []byte, _ crypto.SignerOpts) (signature []byte, err error) {
+	return c.sv.Sign(context.Background(), digest)
+}
+
+func AsCryptoSigner(signer dsse.SignerVerifier) (crypto.Signer, error) {
+	return &cryptoSignerWrapper{sv: signer}, nil
 }

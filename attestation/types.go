@@ -1,9 +1,12 @@
 package attestation
 
 import (
+	"crypto"
 	"encoding/base64"
 	"fmt"
+	"time"
 
+	"github.com/docker/attest/tlog"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	v02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
@@ -17,7 +20,6 @@ const (
 	InTotoPredicateType           = "in-toto.io/predicate-type"
 	DockerReferenceDigest         = "vnd.docker.reference.digest"
 	DockerDSSEExtKind             = "application/vnd.docker.attestation-verification.v1+json"
-	RekorTLExtKind                = "Rekor"
 	OCIDescriptorDSSEMediaType    = ociv1.MediaTypeDescriptor + "+dsse"
 	InTotoReferenceLifecycleStage = "vnd.docker.lifecycle-stage"
 	LifecycleStageExperimental    = "experimental"
@@ -72,22 +74,40 @@ type AnnotatedStatement struct {
 }
 
 type DockerDSSEExtension struct {
-	TL *DockerTLExtension `json:"tl"`
+	TL *tlog.DockerTLExtension `json:"tl"`
 }
 
-type DockerTLExtension struct {
-	Kind string `json:"kind"`
-	Data any    `json:"data"`
-}
+type TransparencyLogKind string
+
+const (
+	RekorTransparencyLogKind = "rekor"
+)
 
 type VerifyOptions struct {
-	Keys   []*KeyMetadata `json:"keys"`
-	SkipTL bool           `json:"skip_tl"`
+	Keys            []*KeyMetadata      `json:"keys"`
+	SkipTL          bool                `json:"skip_tl"`
+	TransparencyLog TransparencyLogKind `json:"tl"`
 }
 
+type KeyMetadata struct {
+	ID            string     `json:"id"`
+	PEM           string     `json:"key"`
+	From          time.Time  `json:"from"`
+	To            *time.Time `json:"to"`
+	Status        string     `json:"status"`
+	SigningFormat string     `json:"signing-format"`
+	Distrust      bool       `json:"distrust,omitempty"`
+	publicKey     crypto.PublicKey
+}
+
+type (
+	Keys    []*KeyMetadata
+	KeysMap map[string]*KeyMetadata
+)
+
 type SigningOptions struct {
-	// don't log to the configured transparency log
-	SkipTL bool
+	// set this in order to log to a transparency log
+	TransparencyLog tlog.TransparencyLog
 }
 
 type Options struct {
