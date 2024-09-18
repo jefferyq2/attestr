@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/docker/attest/attestation"
-	"github.com/docker/attest/config"
 	"github.com/docker/attest/internal/test"
+	"github.com/docker/attest/mapping"
 	"github.com/docker/attest/oci"
 	"github.com/docker/attest/policy"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -45,7 +45,8 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 	defaultResolver := attestation.MockResolver{
 		Envs: []*attestation.Envelope{loadAttestation(t, ExampleAttestation)},
 	}
-
+	defaultPlatform, err := v1.ParsePlatform("linux/amd64")
+	require.NoError(t, err)
 	testCases := []struct {
 		policyPath      string
 		expectSuccess   bool
@@ -87,7 +88,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 			imageName, err := tc.resolver.ImageName(ctx)
 			require.NoError(t, err)
 			resolver := policy.NewResolver(nil, tc.opts)
-			policy, err := resolver.ResolvePolicy(ctx, imageName)
+			policy, err := resolver.ResolvePolicy(ctx, imageName, defaultPlatform)
 			if tc.resolveErrorStr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.resolveErrorStr)
@@ -108,7 +109,7 @@ func TestRegoEvaluator_Evaluate(t *testing.T) {
 }
 
 func TestLoadingMappings(t *testing.T) {
-	policyMappings, err := config.LoadLocalMappings(filepath.Join("testdata", "policies", "allow"))
+	policyMappings, err := mapping.LoadLocalMappings(filepath.Join("testdata", "policies", "allow"))
 	require.NoError(t, err)
 	assert.Equal(t, len(policyMappings.Rules), 3)
 	for _, mirror := range policyMappings.Rules {
@@ -125,32 +126,32 @@ func TestCreateAttestationResolver(t *testing.T) {
 	layoutResolver := &attestation.LayoutResolver{}
 	registryResolver := &oci.RegistryImageDetailsResolver{}
 
-	nilRepoReferrers := &config.PolicyMapping{
-		Attestations: &config.AttestationConfig{
-			Style: config.AttestationStyleReferrers,
+	nilRepoReferrers := &mapping.PolicyMapping{
+		Attestations: &mapping.AttestationConfig{
+			Style: mapping.AttestationStyleReferrers,
 		},
 	}
-	referrers := &config.PolicyMapping{
-		Attestations: &config.AttestationConfig{
+	referrers := &mapping.PolicyMapping{
+		Attestations: &mapping.AttestationConfig{
 			Repo:  "localhost:5000/repo",
-			Style: config.AttestationStyleReferrers,
+			Style: mapping.AttestationStyleReferrers,
 		},
 	}
-	attached := &config.PolicyMapping{
-		Attestations: &config.AttestationConfig{
-			Style: config.AttestationStyleAttached,
+	attached := &mapping.PolicyMapping{
+		Attestations: &mapping.AttestationConfig{
+			Style: mapping.AttestationStyleAttached,
 		},
 	}
 
 	testCases := []struct {
 		name     string
 		resolver oci.ImageDetailsResolver
-		mapping  *config.PolicyMapping
+		mapping  *mapping.PolicyMapping
 		errorStr string
 	}{
 		{name: "referrers", resolver: layoutResolver, mapping: referrers},
 		{name: "referrers (no mapped repo)", resolver: layoutResolver, mapping: nilRepoReferrers},
-		{name: "referrers (no mapping)", resolver: layoutResolver, mapping: &config.PolicyMapping{Attestations: nil}},
+		{name: "referrers (no mapping)", resolver: layoutResolver, mapping: &mapping.PolicyMapping{Attestations: nil}},
 		{name: "attached (registry)", resolver: registryResolver, mapping: attached},
 		{name: "attached (layout)", resolver: layoutResolver, mapping: attached},
 		{name: "attached (unsupported)", resolver: mockResolver, mapping: attached, errorStr: "unsupported image details resolver type"},
@@ -169,11 +170,11 @@ func TestCreateAttestationResolver(t *testing.T) {
 			}
 			switch resolver.(type) {
 			case *attestation.ReferrersResolver:
-				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleReferrers)
+				assert.Equal(t, tc.mapping.Attestations.Style, mapping.AttestationStyleReferrers)
 			case *attestation.RegistryResolver:
-				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
+				assert.Equal(t, tc.mapping.Attestations.Style, mapping.AttestationStyleAttached)
 			case *attestation.LayoutResolver:
-				assert.Equal(t, tc.mapping.Attestations.Style, config.AttestationStyleAttached)
+				assert.Equal(t, tc.mapping.Attestations.Style, mapping.AttestationStyleAttached)
 			}
 		})
 	}
