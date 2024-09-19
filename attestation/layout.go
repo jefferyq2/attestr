@@ -103,7 +103,7 @@ func manifestFromOCILayout(path string, platform *v1.Platform) (*Manifest, error
 		// try the containerd annotation if the org.opencontainers.image.ref.name is not a full name
 		subjectName = idxDescriptor.Annotations[containerd.AnnotationImageName]
 		if _, err := reference.ParseNamed(subjectName); err != nil {
-			return nil, fmt.Errorf("failed to parse subject name from annotations")
+			return nil, fmt.Errorf("failed to find subject name in annotations")
 		}
 	}
 

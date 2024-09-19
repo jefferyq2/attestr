@@ -76,12 +76,12 @@ func TestSubjectNameAnnotations(t *testing.T) {
 	}{
 		{name: "oci annotation", ociLayoutPath: test.UnsignedTestImage("..")},
 		{name: "containerd annotation", ociLayoutPath: filepath.Join("..", "test", "testdata", "containerd-subject-layout")},
-		{name: "missing subject name", ociLayoutPath: filepath.Join("..", "test", "testdata", "missing-subject-layout"), errorStr: "failed to parse subject name from annotations"},
+		{name: "missing subject name", ociLayoutPath: filepath.Join("..", "test", "testdata", "missing-subject-layout"), errorStr: "failed to find subject name in annotations"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			spec, err := oci.ParseImageSpec(oci.LocalPrefix + tc.ociLayoutPath)
+			spec, err := oci.ParseImageSpec(oci.LocalPrefix+tc.ociLayoutPath, oci.WithPlatform("linux/arm64"))
 			require.NoError(t, err)
 			_, err = policy.CreateImageDetailsResolver(spec)
 			if tc.errorStr != "" {
