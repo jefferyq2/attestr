@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	containerd "github.com/containerd/containerd/v2/core/images"
+	"github.com/distribution/reference"
 	"github.com/docker/attest/oci"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // implementation of Resolver that closes over attestations from an oci layout.
@@ -95,6 +98,14 @@ func manifestFromOCILayout(path string, platform *v1.Platform) (*Manifest, error
 
 	idxDescriptor := idxm.Manifests[0]
 	idxDigest := idxDescriptor.Digest
+	subjectName := idxDescriptor.Annotations[ocispec.AnnotationRefName]
+	if _, err := reference.ParseNamed(subjectName); err != nil {
+		// try the containerd annotation if the org.opencontainers.image.ref.name is not a full name
+		subjectName = idxDescriptor.Annotations[containerd.AnnotationImageName]
+		if _, err := reference.ParseNamed(subjectName); err != nil {
+			return nil, fmt.Errorf("failed to find subject name in annotations")
+		}
+	}
 
 	mfs, err := idx.ImageIndex(idxDigest)
 	if err != nil {
@@ -138,7 +149,7 @@ func manifestFromOCILayout(path string, platform *v1.Platform) (*Manifest, error
 		attest := &Manifest{
 			OriginalLayers:     layers,
 			OriginalDescriptor: mf,
-			SubjectName:        idxDescriptor.Annotations["org.opencontainers.image.ref.name"],
+			SubjectName:        subjectName,
 			SubjectDescriptor:  subjectDescriptor,
 		}
 		return attest, nil
