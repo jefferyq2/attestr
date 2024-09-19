@@ -1,6 +1,7 @@
 package attestation_test
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestAttestationFromOCILayout(t *testing.T) {
 	require.NoError(t, err)
 	spec, err := oci.ParseImageSpec(oci.LocalPrefix + outputLayout)
 	require.NoError(t, err)
-	err = oci.SaveIndex(ctx, []*oci.ImageSpec{spec}, signedIndex, outputLayout)
+	err = oci.SaveIndex(ctx, []*oci.ImageSpec{spec}, signedIndex, "docker.io/library/test-image:test")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -63,6 +64,32 @@ func TestAttestationFromOCILayout(t *testing.T) {
 			require.NoError(t, err)
 			digest := desc.Digest.String()
 			assert.True(t, strings.Contains(digest, "sha256:"))
+		})
+	}
+}
+
+func TestSubjectNameAnnotations(t *testing.T) {
+	testCases := []struct {
+		name          string
+		ociLayoutPath string
+		errorStr      string
+	}{
+		{name: "oci annotation", ociLayoutPath: test.UnsignedTestImage("..")},
+		{name: "containerd annotation", ociLayoutPath: filepath.Join("..", "test", "testdata", "containerd-subject-layout")},
+		{name: "missing subject name", ociLayoutPath: filepath.Join("..", "test", "testdata", "missing-subject-layout"), errorStr: "failed to parse subject name from annotations"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := oci.ParseImageSpec(oci.LocalPrefix + tc.ociLayoutPath)
+			require.NoError(t, err)
+			_, err = policy.CreateImageDetailsResolver(spec)
+			if tc.errorStr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errorStr)
+				return
+			}
+			require.NoError(t, err)
 		})
 	}
 }
