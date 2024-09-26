@@ -96,8 +96,9 @@ func layersFromImage(image v1.Image) ([]*Layer, error) {
 		// copy original annotations
 		ann := maps.Clone(layerDesc.Annotations)
 		// only decode intoto statements
-		stmt := new(intoto.Statement)
+		var stmt *intoto.Statement
 		if mt == types.MediaType(intoto.PayloadType) {
+			stmt = new(intoto.Statement)
 			err = json.NewDecoder(r).Decode(&stmt)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode statement layer contents: %w", err)

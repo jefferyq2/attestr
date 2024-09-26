@@ -19,9 +19,12 @@ func SignStatements(ctx context.Context, idx v1.ImageIndex, signer dsse.SignerVe
 	// sign every attestation layer in each manifest
 	for _, manifest := range attestationManifests {
 		for _, layer := range manifest.OriginalLayers {
-			err = manifest.Add(ctx, signer, layer.Statement, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to sign attestation layer %w", err)
+			// skip layers without statements
+			if layer.Statement != nil {
+				err = manifest.Add(ctx, signer, layer.Statement, opts)
+				if err != nil {
+					return nil, fmt.Errorf("failed to sign attestation layer %w", err)
+				}
 			}
 		}
 	}
