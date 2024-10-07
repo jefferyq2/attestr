@@ -69,13 +69,13 @@ type Extension struct {
 
 type EnvelopeReference struct {
 	*Envelope
-	ResourceDescriptor *ResourceDescriptor
+	ResourceDescriptor *ResourceDescriptor `json:"resourceDescriptor"`
 }
 
 type ResourceDescriptor struct {
 	MediaType string            `json:"mediaType"`
 	Digest    map[string]string `json:"digest"`
-	URI       string            `json:"uri"`
+	URI       string            `json:"uri,omitempty"`
 }
 
 type AnnotatedStatement struct {
