@@ -37,11 +37,11 @@ func TestVerifyAttestations(t *testing.T) {
 	ex, err := os.ReadFile(ExampleAttestation)
 	assert.NoError(t, err)
 
-	env := new(attestation.Envelope)
+	env := new(attestation.EnvelopeReference)
 	err = json.Unmarshal(ex, env)
 	assert.NoError(t, err)
 	resolver := &attestation.MockResolver{
-		Envs: []*attestation.Envelope{env},
+		Envs: []*attestation.EnvelopeReference{env},
 	}
 
 	testCases := []struct {
