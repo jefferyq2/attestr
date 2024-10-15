@@ -1,6 +1,8 @@
 module github.com/docker/attest
 
-go 1.22.5
+go 1.22.7
+
+toolchain go1.22.8
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
@@ -18,7 +20,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/package-url/packageurl-go v0.1.3
 	github.com/secure-systems-lab/go-securesystemslib v0.8.0
-	github.com/sigstore/cosign/v2 v2.4.0
+	github.com/sigstore/cosign/v2 v2.4.1
 	github.com/sigstore/rekor v1.3.6
 	github.com/sigstore/sigstore v1.8.9
 	github.com/sigstore/sigstore/pkg/signature/kms/aws v1.8.9
@@ -55,7 +57,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.24.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/kms v1.35.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kms v1.35.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.32.2 // indirect
@@ -80,7 +82,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.23.0 // indirect
@@ -161,7 +163,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
