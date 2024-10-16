@@ -14,6 +14,7 @@ import (
 	"github.com/docker/attest/oci"
 	"github.com/docker/attest/policy"
 	"github.com/docker/attest/tuf"
+	"github.com/docker/attest/version"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 )
 
@@ -21,6 +22,7 @@ type ImageVerifier struct {
 	opts                *policy.Options
 	tufClient           tuf.Downloader
 	attestationVerifier attestation.Verifier
+	versionFetcher      version.Fetcher
 }
 
 func NewImageVerifier(ctx context.Context, opts *policy.Options) (*ImageVerifier, error) {
@@ -46,6 +48,7 @@ func NewImageVerifier(ctx context.Context, opts *policy.Options) (*ImageVerifier
 		opts:                opts,
 		tufClient:           tufClient,
 		attestationVerifier: attestationVerifier,
+		versionFetcher:      version.NewGoVersionFetcher(),
 	}, nil
 }
 
@@ -93,7 +96,7 @@ func (verifier *ImageVerifier) Verify(ctx context.Context, src *oci.ImageSpec) (
 		return nil, fmt.Errorf("failed to create attestation resolver: %w", err)
 	}
 	evaluator := policy.NewRegoEvaluator(verifier.opts.Debug, verifier.attestationVerifier)
-	result, err = verifyAttestations(ctx, resolver, evaluator, resolvedPolicy, verifier.opts)
+	result, err = verifier.verifyAttestations(ctx, resolver, evaluator, resolvedPolicy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to evaluate policy: %w", err)
 	}
@@ -141,7 +144,7 @@ func defaultLocalTargetsDir() (string, error) {
 	return filepath.Join(homeDir, ".docker", "tuf"), nil
 }
 
-func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.Result) (*VerificationResult, error) {
+func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.Result, versionFetcher version.Fetcher) (*VerificationResult, error) {
 	dgst, err := oci.SplitDigest(input.Digest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to split digest: %w", err)
@@ -168,6 +171,10 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 	}
 
 	vsaPolicy := attestation.VSAPolicy{URI: result.Summary.PolicyURI, DownloadLocation: p.URI, Digest: p.Digest}
+	attestVersion, err := attestation.GetVerifierVersion(versionFetcher)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get verifier version: %w", err)
+	}
 
 	return &VerificationResult{
 		Policy:     p,
@@ -182,7 +189,8 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 			},
 			Predicate: attestation.VSAPredicate{
 				Verifier: attestation.VSAVerifier{
-					ID: result.Summary.Verifier,
+					ID:      result.Summary.Verifier,
+					Version: attestVersion,
 				},
 				TimeVerified:       time.Now().UTC().Format(time.RFC3339),
 				ResourceURI:        resourceURI,
@@ -195,7 +203,7 @@ func toVerificationResult(p *policy.Policy, input *policy.Input, result *policy.
 	}, nil
 }
 
-func verifyAttestations(ctx context.Context, resolver attestation.Resolver, evaluator policy.Evaluator, resolvedPolicy *policy.Policy, opts *policy.Options) (*VerificationResult, error) {
+func (verifier *ImageVerifier) verifyAttestations(ctx context.Context, resolver attestation.Resolver, evaluator policy.Evaluator, resolvedPolicy *policy.Policy) (*VerificationResult, error) {
 	desc, err := resolver.ImageDescriptor(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get image descriptor: %w", err)
@@ -247,7 +255,7 @@ func verifyAttestations(ctx context.Context, resolver attestation.Resolver, eval
 		Domain:         reference.Domain(ref),
 		NormalizedName: reference.Path(ref),
 		FamiliarName:   reference.FamiliarName(ref),
-		Parameters:     opts.Parameters,
+		Parameters:     verifier.opts.Parameters,
 	}
 	// rego has null strings
 	if tag != "" {
@@ -257,7 +265,7 @@ func verifyAttestations(ctx context.Context, resolver attestation.Resolver, eval
 	if err != nil {
 		return nil, fmt.Errorf("policy evaluation failed: %w", err)
 	}
-	verificationResult, err := toVerificationResult(resolvedPolicy, input, result)
+	verificationResult, err := toVerificationResult(resolvedPolicy, input, result, verifier.versionFetcher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert to policy result: %w", err)
 	}

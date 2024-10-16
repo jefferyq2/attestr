@@ -3,6 +3,7 @@ package attestation
 import (
 	"fmt"
 
+	"github.com/docker/attest/version"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/package-url/packageurl-go"
 )
@@ -22,8 +23,11 @@ type VSAPredicate struct {
 }
 
 type VSAVerifier struct {
-	ID string `json:"id"`
+	ID      string          `json:"id"`
+	Version VerifierVersion `json:"version"`
 }
+
+type VerifierVersion map[string]string
 
 type VSAPolicy struct {
 	URI              string            `json:"uri,omitempty"`
@@ -43,4 +47,17 @@ func ToVSAResourceURI(sub intoto.Subject) (string, error) {
 	}
 	purl.Qualifiers = packageurl.QualifiersFromMap(quals)
 	return purl.String(), nil
+}
+
+func GetVerifierVersion(fetcher version.Fetcher) (VerifierVersion, error) {
+	attestVersion, err := fetcher.Get()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attest version: %w", err)
+	}
+	if attestVersion == nil {
+		return nil, nil
+	}
+	return VerifierVersion{
+		version.ThisModulePath: attestVersion.String(),
+	}, nil
 }
