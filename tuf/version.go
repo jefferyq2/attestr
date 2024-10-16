@@ -33,14 +33,17 @@ func (e *InvalidVersionError) Error() string {
 }
 
 func NewDefaultVersionChecker() *DefaultVersionChecker {
-	return &DefaultVersionChecker{}
+	return &DefaultVersionChecker{
+		VersionFetcher: version.NewGoVersionFetcher(),
+	}
 }
 
-type DefaultVersionChecker struct{}
+type DefaultVersionChecker struct {
+	VersionFetcher version.Fetcher
+}
 
 func (vc *DefaultVersionChecker) CheckVersion(client Downloader) error {
-	fetcher := version.NewGoVersionFetcher()
-	attestVersion, err := fetcher.Get()
+	attestVersion, err := vc.VersionFetcher.Get()
 	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
 	}
