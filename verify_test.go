@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/distribution/reference"
 	"github.com/docker/attest/attestation"
 	"github.com/docker/attest/internal/test"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/attest/policy"
 	"github.com/docker/attest/tlog"
 	"github.com/docker/attest/tuf"
+	"github.com/docker/attest/version"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
 	"github.com/stretchr/testify/assert"
@@ -32,8 +34,15 @@ var (
 )
 
 const (
-	LinuxAMD64 = "linux/amd64"
+	LinuxAMD64          = "linux/amd64"
+	TestVerifierVersion = "9.9.9"
 )
+
+type MockVersionFetcher struct{}
+
+func (m *MockVersionFetcher) Get() (*semver.Version, error) {
+	return semver.NewVersion(TestVerifierVersion)
+}
 
 func TestVerifyAttestations(t *testing.T) {
 	ex, err := os.ReadFile(ExampleAttestation)
@@ -62,7 +71,9 @@ func TestVerifyAttestations(t *testing.T) {
 					return policy.AllowedResult(), tc.policyEvaluationError
 				},
 			}
-			_, err := verifyAttestations(ctx, resolver, &mockPE, &policy.Policy{ResolvedName: ""}, &policy.Options{})
+			verifier, err := NewImageVerifier(ctx, &policy.Options{})
+			require.NoError(t, err)
+			_, err = verifier.verifyAttestations(ctx, resolver, &mockPE, &policy.Policy{ResolvedName: ""})
 			if tc.expectedError != nil {
 				if assert.Error(t, err) {
 					assert.Equal(t, tc.expectedError.Error(), err.Error())
@@ -102,7 +113,10 @@ func TestVSA(t *testing.T) {
 		AttestationStyle: mapping.AttestationStyleAttached,
 		DisableTUF:       true,
 	}
-	results, err := Verify(ctx, spec, policyOpts)
+	verifier, err := NewImageVerifier(ctx, policyOpts)
+	require.NoError(t, err)
+	verifier.versionFetcher = &MockVersionFetcher{}
+	results, err := verifier.Verify(ctx, spec)
 	require.NoError(t, err)
 	assert.Equal(t, OutcomeSuccess, results.Outcome)
 	assert.Empty(t, results.Violations)
@@ -135,6 +149,7 @@ func TestVSA(t *testing.T) {
 		assert.NotEmpty(t, digest)
 		assert.Contains(t, []string{"application/vnd.in-toto.provenance+dsse", "application/vnd.in-toto.spdx+dsse"}, input.MediaType)
 	}
+	assert.Equal(t, TestVerifierVersion, attestationPredicate.Verifier.Version[version.ThisModulePath])
 }
 
 func TestVerificationFailure(t *testing.T) {
