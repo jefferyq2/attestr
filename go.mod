@@ -22,7 +22,7 @@ require (
 	github.com/sigstore/rekor v1.3.6
 	github.com/sigstore/sigstore v1.8.10
 	github.com/sigstore/sigstore/pkg/signature/kms/aws v1.8.10
-	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.9
+	github.com/sigstore/sigstore/pkg/signature/kms/gcp v1.8.10
 	github.com/stretchr/testify v1.9.0
 	github.com/theupdateframework/go-tuf/v2 v2.0.2
 	google.golang.org/api v0.201.0
