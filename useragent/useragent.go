@@ -19,10 +19,11 @@ func Set(ctx context.Context, userAgent string) context.Context {
 
 // Get retrieves the HTTP user agent from the context.
 func Get(ctx context.Context) string {
+	fetcher := version.NewGoVersionFetcher()
 	if ua, ok := ctx.Value(userAgentKey).(string); ok {
 		return ua
 	}
-	version, err := version.Get()
+	version, err := fetcher.Get()
 	if err != nil || version == nil {
 		return defaultUserAgent
 	}

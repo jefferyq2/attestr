@@ -9,9 +9,19 @@ import (
 
 const ThisModulePath = "github.com/docker/attest"
 
+type Fetcher interface {
+	Get() (*semver.Version, error)
+}
+
+type GoModVersionFetcher struct{}
+
+func NewGoVersionFetcher() *GoModVersionFetcher {
+	return &GoModVersionFetcher{}
+}
+
 // Get returns the version of the attest module.
 // this can return nil if the version can't be determined (without an error).
-func Get() (*semver.Version, error) {
+func (*GoModVersionFetcher) Get() (*semver.Version, error) {
 	var attestMod *debug.Module
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
