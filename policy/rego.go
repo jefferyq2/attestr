@@ -19,13 +19,17 @@ package policy
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker-library/bashbrew/manifest"
 	"github.com/docker/attest/attestation"
+	"github.com/docker/attest/internal/git"
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -153,24 +157,40 @@ func jsonGenerator[T any]() func(t *ast.Term, ec *rego.EvalContext) (any, error)
 	}
 }
 
-var dynamicObj = types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))
+var (
+	dynamicObj    = types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))
+	valueErrorObj = types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("value", types.A),
+		types.NewStaticProperty("error", types.S),
+	}, nil)
+)
 
-var verifyDecl = &ast.Builtin{
+var verifyDecl = &rego.Function{
 	Name:             "attest.verify",
-	Decl:             types.NewFunction(types.Args(dynamicObj, dynamicObj), dynamicObj),
+	Decl:             types.NewFunction(types.Args(dynamicObj, dynamicObj), valueErrorObj),
 	Nondeterministic: true,
+	Memoize:          true,
 }
 
-var attestDecl = &ast.Builtin{
+var attestDecl = &rego.Function{
 	Name:             "attest.fetch",
-	Decl:             types.NewFunction(types.Args(types.S), dynamicObj),
+	Decl:             types.NewFunction(types.Args(types.S), valueErrorObj),
 	Nondeterministic: true,
+	Memoize:          true,
 }
 
-var internalParseLibraryDefinitionDecl = &ast.Builtin{
+var internalParseLibraryDefinitionDecl = &rego.Function{
 	Name:             "attest.internals.parse_library_definition",
-	Decl:             types.NewFunction(types.Args(types.S), dynamicObj),
+	Decl:             types.NewFunction(types.Args(types.S), valueErrorObj),
 	Nondeterministic: false,
+	Memoize:          true,
+}
+
+var internalReproducibleGitChecksumDecl = &rego.Function{
+	Name:             "attest.internals.reproducible_git_checksum",
+	Decl:             types.NewFunction(types.Args(types.S, types.S, types.S), valueErrorObj),
+	Nondeterministic: true,
+	Memoize:          true,
 }
 
 func wrapFunctionResult(value *ast.Term, err error) (*ast.Term, error) {
@@ -184,15 +204,21 @@ func wrapFunctionResult(value *ast.Term, err error) (*ast.Term, error) {
 	return ast.ObjectTerm(terms...), nil
 }
 
-func handleErrors1(f func(rCtx rego.BuiltinContext, a *ast.Term) (*ast.Term, error)) rego.Builtin1 {
+func handleErrors1(f rego.Builtin1) rego.Builtin1 {
 	return func(rCtx rego.BuiltinContext, a *ast.Term) (*ast.Term, error) {
 		return wrapFunctionResult(f(rCtx, a))
 	}
 }
 
-func handleErrors2(f func(rCtx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error)) rego.Builtin2 {
+func handleErrors2(f rego.Builtin2) rego.Builtin2 {
 	return func(rCtx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 		return wrapFunctionResult(f(rCtx, a, b))
+	}
+}
+
+func handleErrors3(f rego.Builtin3) rego.Builtin3 {
+	return func(rCtx rego.BuiltinContext, a, b, c *ast.Term) (*ast.Term, error) {
+		return wrapFunctionResult(f(rCtx, a, b, c))
 	}
 }
 
@@ -201,34 +227,37 @@ func RegoFunctions(regoOpts *RegoFnOpts) []*tester.Builtin {
 		builtin2(verifyDecl, regoOpts.verifyInTotoEnvelope),
 		builtin1(attestDecl, regoOpts.fetchInTotoAttestations),
 		builtin1(internalParseLibraryDefinitionDecl, regoOpts.internalParseLibraryDefinition),
+		builtin3(internalReproducibleGitChecksumDecl, regoOpts.internalReproducibleGitChecksum),
 	}
 }
 
-func builtin1(decl *ast.Builtin, f rego.Builtin1) *tester.Builtin {
+func builtin1(decl *rego.Function, f rego.Builtin1) *tester.Builtin {
 	return &tester.Builtin{
-		Decl: decl,
-		Func: rego.Function1(
-			&rego.Function{
-				Name:             decl.Name,
-				Decl:             decl.Decl,
-				Memoize:          true,
-				Nondeterministic: decl.Nondeterministic,
-			},
-			handleErrors1(f)),
+		Decl: regoFuncToBuiltin(decl),
+		Func: rego.Function1(decl, handleErrors1(f)),
 	}
 }
 
-func builtin2(decl *ast.Builtin, f rego.Builtin2) *tester.Builtin {
+func builtin2(decl *rego.Function, f rego.Builtin2) *tester.Builtin {
 	return &tester.Builtin{
-		Decl: decl,
-		Func: rego.Function2(
-			&rego.Function{
-				Name:             decl.Name,
-				Decl:             decl.Decl,
-				Memoize:          true,
-				Nondeterministic: decl.Nondeterministic,
-			},
-			handleErrors2(f)),
+		Decl: regoFuncToBuiltin(decl),
+		Func: rego.Function2(decl, handleErrors2(f)),
+	}
+}
+
+func builtin3(decl *rego.Function, f rego.Builtin3) *tester.Builtin {
+	return &tester.Builtin{
+		Decl: regoFuncToBuiltin(decl),
+		Func: rego.Function3(decl, handleErrors3(f)),
+	}
+}
+
+func regoFuncToBuiltin(decl *rego.Function) *ast.Builtin {
+	return &ast.Builtin{
+		Name:             decl.Name,
+		Description:      decl.Description,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	}
 }
 
@@ -323,7 +352,7 @@ func (regoOpts *RegoFnOpts) verifyInTotoEnvelope(rCtx rego.BuiltinContext, envTe
 func (regoOpts *RegoFnOpts) internalParseLibraryDefinition(_ rego.BuiltinContext, definitionTerm *ast.Term) (*ast.Term, error) {
 	definitionStr, ok := definitionTerm.Value.(ast.String)
 	if !ok {
-		return nil, fmt.Errorf("predicateTypeTerm is not a string")
+		return nil, fmt.Errorf("definitionTerm is not a string")
 	}
 	definition := string(definitionStr)
 	defBuffer := bytes.NewBufferString(definition)
@@ -336,6 +365,66 @@ func (regoOpts *RegoFnOpts) internalParseLibraryDefinition(_ rego.BuiltinContext
 		return nil, err
 	}
 	return ast.NewTerm(value), nil
+}
+
+// because we don't control the signature here (blame rego)
+// nolint:gocritic
+func (regoOpts *RegoFnOpts) internalReproducibleGitChecksum(rCtx rego.BuiltinContext, gitRepoTerm, gitCommitTerm, gitDirectoryTerm *ast.Term) (*ast.Term, error) {
+	gitRepoStr, ok := gitRepoTerm.Value.(ast.String)
+	if !ok {
+		return nil, fmt.Errorf("gitRepoTerm is not a string")
+	}
+	gitCommitStr, ok := gitCommitTerm.Value.(ast.String)
+	if !ok {
+		return nil, fmt.Errorf("gitCommitTerm is not a string")
+	}
+	gitDirectoryStr, ok := gitDirectoryTerm.Value.(ast.String)
+	if !ok {
+		return nil, fmt.Errorf("gitDirectoryTerm is not a string")
+	}
+	gitRepo := string(gitRepoStr)
+	gitCommit := string(gitCommitStr)
+	gitDirectory := string(gitDirectoryStr)
+	checksum, err := reproducibleGitChecksum(rCtx.Context, gitRepo, gitCommit, gitDirectory)
+	if err != nil {
+		return nil, err
+	}
+	value, err := ast.InterfaceToValue(checksum)
+	if err != nil {
+		return nil, err
+	}
+	return ast.NewTerm(value), nil
+}
+
+func reproducibleGitChecksum(ctx context.Context, gitRepo, gitCommit, gitDirectory string) (string, error) {
+	repoDir, err := os.MkdirTemp("", "git-clone-")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(repoDir)
+
+	err = git.Clone(ctx, gitRepo, gitCommit, repoDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to clone git repository: %w", err)
+	}
+
+	// set a timeout to avoid the archive command hanging indefinitely
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	r, err := git.Archive(ctx, repoDir, gitDirectory)
+	if err != nil {
+		return "", fmt.Errorf("failed to get git archive: %w", err)
+	}
+
+	h := sha256.New()
+	err = git.TarScrub(r, h)
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate hash of git archive: %w", err)
+	}
+
+	digest := h.Sum(nil)
+	return hex.EncodeToString(digest), nil
 }
 
 func loadYAML(path string, bs []byte) (interface{}, error) {
